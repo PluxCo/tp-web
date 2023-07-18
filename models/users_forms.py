@@ -4,11 +4,15 @@ from wtforms.validators import DataRequired
 
 
 class LoginForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired()])
     passwd = PasswordField("Password", validators=[DataRequired()])
 
 
-class RegisterForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired()])
-    passwd = PasswordField("Password", validators=[DataRequired()])
-    repasswd = PasswordField("Repeat password", validators=[DataRequired()])
+class UserCork:
+    def is_active(self):
+        return True
+
+    def is_authenticated(self):
+        return True
+
+    def get_id(self):
+        return 1
