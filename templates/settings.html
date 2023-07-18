@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-lg">
+    <div class="row">
+        <div class="col-12 col-lg-6 offset-lg-3">
+            <h2>Settings</h2>
+            <form method="POST" action="">
+                {{ form.csrf_token }}
+                <div>
+                    <h4>Protection</h3>
+                    <div class="mb-3">
+                        {{ form.protection_type.label(class_="form-label") }}
+                        {{ form.protection_type(class_="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.protection_key.label(class_="form-label") }}
+                        {{ form.protection_key(class_="form-control") }}
+                    </div>
+                </div>
+                <div>
+                    <h4>Security</h3>
+                    <div class="mb-3">
+                        {{ form.bot_timeout.label(class_="form-label") }}
+                        {{ form.bot_timeout(class_="form-control") }}
+                    </div>
+                </div>
+                <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
