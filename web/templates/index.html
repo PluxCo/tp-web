@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-lg">
+    <div class="row">
+        {% for user in users %}
+        <form action="/set/{{ user.id }}" id="form-{{ user.id }}" method="get"></form>
+        {% endfor %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">id</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Display name</th>
+                    <th scope="col">Telegram</th>
+                    <th scope="col">Access</th>
+                    <th scope="col">Is admin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <th>{{ user.id }}</th>
+                    <td><label>{{ user.username }}</label></td>
+                    <td>
+                        <input class="form-control" type="text" name="display_name" form="form-{{ user.id }}"
+                            value="{{ user.display_name }}">
+                    </td>
+                    <td>{{ user.tg_id }}</td>
+                    <td>
+                        {% if user.is_known %}
+
+                        <input class="form-check-input" type="checkbox" name="is_known" form="form-{{ user.id }}"
+                            checked>
+                        {% else %}
+                        <input class="form-check-input" type="checkbox" name="is_known" form="form-{{ user.id }}">
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if user.is_admin %}
+                        <input class="form-check-input" type="checkbox" name="is_admin" form="form-{{ user.id }}"
+                            checked>
+                        {% else %}
+                        <input class="form-check-input" type="checkbox" name="is_admin" form="form-{{ user.id }}">
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block postscripts %}
+<script type="text/javascript" src="/static/js/index.js"></script>
+{% endblock %}
