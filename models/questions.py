@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, Time, Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, Time, Enum, Table
 from sqlalchemy.orm import relationship
 
 from .db_session import SqlAlchemyBase
@@ -13,6 +13,13 @@ class AnswerState(enum.Enum):
     ANSWERED = 2
 
 
+class QuestionGroupAssociation(SqlAlchemyBase):
+    __tablename__ = "question_to_group"
+
+    person_id = Column(Integer, primary_key=True)
+    group_id = Column(Integer, primary_key=True)
+
+
 class Question(SqlAlchemyBase):
     __tablename__ = "questions"
 
@@ -20,8 +27,7 @@ class Question(SqlAlchemyBase):
     text = Column(Text)
     options = Column(Text)
     answer = Column(Integer)
-    group_id = Column(ForeignKey("person_groups.id"))
-    group = relationship("PersonGroup")
+    groups = relationship("PersonGroup", secondary="person_to_group")
     level = Column(Integer)
     article_url = Column(String)
 

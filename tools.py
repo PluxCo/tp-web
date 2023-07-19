@@ -1,6 +1,5 @@
 import json
 import os
-from typing import IO
 
 
 class Settings:
