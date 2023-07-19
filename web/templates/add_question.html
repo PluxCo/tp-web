@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container-lg">
+        <div class="col">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Text</th>
+                    <th scope="col">Options</th>
+                    <th scope="col">Correct answers</th>
+                    <th scope="col">Difficulty</th>
+                    <th scope="col">Article</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for q in questions %}
+                    <tr>
+                        <th scope="col">q.id</th>
+                        <th scope="col">q.text</th>
+                        <th scope="col">q.options</th>
+                        <th scope="col">q.answer</th>
+                        <th scope="col">q.level</th>
+                        <th scope="col"><a href="q.article_url">q.article_url</a></th>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="col"></div>
+    </div>
+{% endblock %}

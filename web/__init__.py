@@ -1,9 +1,12 @@
 import os
 
-from flask import Flask, redirect, render_template, request
+from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from sqlalchemy import select
 
-from models.users_forms import LoginForm, UserCork
+from models import db_session
+from models import users, questions
+from web.forms.users import LoginForm, UserCork
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -51,3 +54,10 @@ def main_page():
         return redirect("/login")
 
     return render_template("index.html")
+
+
+@app.route("/add_question")
+def add_question():
+    db = db_session.create_session()
+    questions_list = db.scalars(select(questions.Question))
+    return render_template("add_question.html", questions=questions_list)
