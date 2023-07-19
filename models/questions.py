@@ -16,8 +16,8 @@ class AnswerState(enum.Enum):
 class QuestionGroupAssociation(SqlAlchemyBase):
     __tablename__ = "question_to_group"
 
-    person_id = Column(Integer, primary_key=True)
-    group_id = Column(Integer, primary_key=True)
+    question_id = Column(ForeignKey("questions.id"), primary_key=True)
+    group_id = Column(ForeignKey("person_groups.id"), primary_key=True)
 
 
 class Question(SqlAlchemyBase):
@@ -27,7 +27,7 @@ class Question(SqlAlchemyBase):
     text = Column(Text)
     options = Column(Text)
     answer = Column(Integer)
-    groups = relationship("PersonGroup", secondary="person_to_group")
+    groups = relationship("PersonGroup", secondary="question_to_group")
     level = Column(Integer)
     article_url = Column(String)
 

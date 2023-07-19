@@ -7,8 +7,8 @@ from .db_session import SqlAlchemyBase
 class PersonGroupAssociation(SqlAlchemyBase):
     __tablename__ = "person_to_group"
 
-    person_id = Column(Integer, primary_key=True)
-    group_id = Column(Integer, primary_key=True)
+    person_id = Column(ForeignKey("persons.id"), primary_key=True)
+    group_id = Column(ForeignKey("person_groups.id"), primary_key=True)
 
 
 class PersonGroup(SqlAlchemyBase):
