@@ -1,33 +1,73 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container-lg">
-        <div class="col">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Text</th>
-                    <th scope="col">Options</th>
-                    <th scope="col">Correct answers</th>
-                    <th scope="col">Difficulty</th>
-                    <th scope="col">Article</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for q in questions %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 col-lg-9">
+                <table class="table">
+                    <thead>
                     <tr>
-                        <th scope="col">q.id</th>
-                        <th scope="col">q.text</th>
-                        <th scope="col">q.options</th>
-                        <th scope="col">q.answer</th>
-                        <th scope="col">q.level</th>
-                        <th scope="col"><a href="q.article_url">q.article_url</a></th>
+                        <th scope="col">#</th>
+                        <th scope="col">Text</th>
+                        <th scope="col">Options</th>
+                        <th scope="col">Correct answers</th>
+                        <th scope="col">Groups</th>
+                        <th scope="col">Difficulty</th>
+                        <th scope="col">Article</th>
                     </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {% for q in questions %}
+                        <tr>
+                            <th scope="row">{{ q.id }}</th>
+                            <td>{{ q.text }}</td>
+                            <td>{{ q.options }}</td>
+                            <td>{{ q.answer }}</td>
+                            <td>{% for item in q.groups %}{{ item.name }}{% if not loop.last %},
+                            {% endif %}{% endfor %}</td>
+                            <td>{{ q.level }}</td>
+                            <td><a href="{{ q.article_url }}">{{ q.article_url }}</a></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-12 col-lg-3">
+                <form method="POST" action="">
+
+                    {{ create_question_form.csrf_token }}
+                    <div class="mb-1">>
+                        {{ create_question_form.text.label(class_="form-label") }}
+                        {{ create_question_form.text(class_="form-control") }}
+                    </div>
+                    <div class="mb-1">>
+                        {{ create_question_form.options.label(class_="form-label") }}
+                        {{ create_question_form.options(class_="form-control") }}
+                    </div>
+                    <div class="mb-1">
+                        {{ create_question_form.answer.label(class_="form-label") }}
+                        {{ create_question_form.answer(class_="form-control") }}
+                    </div>
+                    <div class="mb-1">
+                        {{ create_question_form.groups.label(class_="form-label") }}
+                        {{ create_question_form.groups(class_="form-control selectpicker", data_actions_box="true") }}
+                    </div>
+                    <div class="mb-1">
+                        {{ create_question_form.level.label(class_="form-label") }}
+                        {{ create_question_form.level(class_="form-control") }}
+                    </div>
+                    <div class="mb-1">
+                        {{ create_question_form.article.label(class_="form-label") }}
+                        {{ create_question_form.article(class_="form-control") }}
+                    </div>
+                    {% for field, error in create_question_form.errors.items() %}
+                        <div class="alert alert-warning">
+                            {{ "\n".join(error) }}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" name="accept_btn" class="btn btn-success float-end">Create</button>
+                </form>
+            </div>
         </div>
-        <div class="col"></div>
     </div>
 {% endblock %}
