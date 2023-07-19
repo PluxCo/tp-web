@@ -2,8 +2,42 @@
 
 {% block content %}
     <div class="container-lg">
+        <h1>Settings</h1>
         <div class="row">
-
+            <h3>Person groups</h3>
+            <div class="col">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Label</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for g in groups %}
+                        <tr>
+                            <th scope="col">{{ g.id }}</th>
+                            <th scope="col">{{ g.name }}</th>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col">
+                <form method="POST" action="">
+                    {{ create_group_form.csrf_token }}
+                    <div class="mb-3">
+                        {{ create_group_form.name.label(class_="form-label") }}
+                        {{ create_group_form.name(class_="form-control") }}
+                    </div>
+                    {% for field, error in create_group_form.errors.items() %}
+                        <div class="alert alert-warning">
+                            {{ "\n".join(error) }}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                </form>
+            </div>
         </div>
     </div>
 {% endblock %}
