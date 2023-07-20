@@ -53,8 +53,9 @@ def main_page():
     return render_template("index.html")
 
 
-@app.route("/add_question", methods=["POST", "GET"])
-def add_question_page():
+@app.route("/questions", methods=["POST", "GET"])
+@login_required
+def questions_page():
     db = db_session.create_session()
     create_question_form = CreateQuestionForm()
 
@@ -83,10 +84,11 @@ def add_question_page():
 
     questions_list = db.scalars(select(questions.Question))
 
-    return render_template("add_question.html", questions=questions_list, create_question_form=create_question_form)
+    return render_template("question.html", questions=questions_list, create_question_form=create_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
+@login_required
 def settings_page():
     db = db_session.create_session()
     create_group_form = CreateGroupForm()
