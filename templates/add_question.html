@@ -9,6 +9,7 @@
                     <tr>
                         <th scope="col">#</th>
                         <th scope="col">Text</th>
+                        <th scope="col">Subject</th>
                         <th scope="col">Options</th>
                         <th scope="col">Correct answers</th>
                         <th scope="col">Groups</th>
@@ -21,6 +22,7 @@
                         <tr>
                             <th scope="row">{{ q.id }}</th>
                             <td>{{ q.text }}</td>
+                            <td>{{ q.subject }}</td>
                             <td>{{ q.options }}</td>
                             <td>{{ q.answer }}</td>
                             <td>{% for item in q.groups %}{{ item.name }}{% if not loop.last %},
@@ -36,11 +38,15 @@
                 <form method="POST" action="">
 
                     {{ create_question_form.csrf_token }}
-                    <div class="mb-1">>
+                    <div class="mb-1">
                         {{ create_question_form.text.label(class_="form-label") }}
                         {{ create_question_form.text(class_="form-control") }}
                     </div>
-                    <div class="mb-1">>
+                    <div class="mb-1">
+                        {{ create_question_form.subject.label(class_="form-label") }}
+                        {{ create_question_form.subject(class_="form-control") }}
+                    </div>
+                    <div class="mb-1">
                         {{ create_question_form.options.label(class_="form-label") }}
                         {{ create_question_form.options(class_="form-control") }}
                     </div>

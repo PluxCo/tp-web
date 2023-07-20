@@ -5,6 +5,7 @@ from wtforms.validators import DataRequired, ValidationError
 
 class CreateQuestionForm(FlaskForm):
     text = TextAreaField("Text", validators=[DataRequired()])
+    subject = StringField("Subject")
     options = TextAreaField("Options (one per line)")
     answer = IntegerField("Answer index")
     groups = SelectMultipleField("Groups")

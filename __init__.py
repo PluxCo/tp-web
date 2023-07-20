@@ -64,8 +64,9 @@ def add_question_page():
     if create_question_form.validate_on_submit():
         selected = [int(item) for item in create_question_form.groups.data]
         selected_groups = db.scalars(select(users.PersonGroup).where(users.PersonGroup.id.in_(selected)))
-        options = json.dumps(create_question_form.options.data.splitlines())
+        options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
         new_question = questions.Question(text=create_question_form.text.data,
+                                          subject=create_question_form.subject.data,
                                           options=options,
                                           answer=create_question_form.answer.data - 1,
                                           level=create_question_form.level.data,
@@ -75,7 +76,10 @@ def add_question_page():
         db.add(new_question)
         db.commit()
 
-        create_question_form = CreateQuestionForm(formdata=None)
+        create_question_form = CreateQuestionForm(formdata=None,
+                                                  subject=create_question_form.subject.data,
+                                                  article=create_question_form.article.data)
+        create_question_form.groups.choices = groups
 
     questions_list = db.scalars(select(questions.Question))
 
