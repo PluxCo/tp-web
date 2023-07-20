@@ -41,7 +41,6 @@ class QuestionAnswer(SqlAlchemyBase):
     question = relationship("Question")
     person_id = Column(ForeignKey("persons.id"))
     person = relationship("Person")
-    person_answer = Column(String)
     answered_time = Column(DateTime)
     ask_time = Column(DateTime)
     state = Column(Enum(AnswerState))
