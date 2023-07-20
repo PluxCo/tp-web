@@ -25,6 +25,7 @@ class Question(SqlAlchemyBase):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     text = Column(Text)
+    subject = Column(String)
     options = Column(Text)
     answer = Column(Integer)
     groups = relationship("PersonGroup", secondary="question_to_group")
@@ -40,6 +41,7 @@ class QuestionAnswer(SqlAlchemyBase):
     question = relationship("Question")
     person_id = Column(ForeignKey("persons.id"))
     person = relationship("Person")
-    answered_time = Column(Time)
+    person_answer = Column(String)
+    answer_time = Column(Time)
     ask_time = Column(Time)
     state = Column(Enum(AnswerState))

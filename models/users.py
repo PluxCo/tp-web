@@ -24,5 +24,4 @@ class Person(SqlAlchemyBase):
     id = Column(Integer, primary_key=True, autoincrement=True)
     full_name = Column(String)
     groups = relationship("PersonGroup", secondary="person_to_group")
-    level = Column(Integer)
     tg_id = Column(Integer, unique=True)
