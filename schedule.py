@@ -1,11 +1,13 @@
-import math
-import random
+import datetime
+import enum
+import math, time
 
 import sqlalchemy
 from faker import Faker
 import json
 from models.db_session import Session
 from models import questions, users
+from threading import Thread
 
 
 def fake_db(session: Session, scale=100):
@@ -58,3 +60,64 @@ def fake_db(session: Session, scale=100):
         answer.state = questions.AnswerState(fake.random_int(min=0, max=2))
         db.add(answer)
     db.commit()
+
+
+class WeekDays(enum.Enum):
+    Monday = 1
+    Tuesday = 2
+    Wednesday = 3
+    Thursday = 4
+    Friday = 5
+    Sunday = 6
+    Saturday = 7
+
+
+class Schedule(Thread):
+    def __init__(self, callback):
+        super().__init__()
+        self._callback = callback
+        self._every = {}
+        self._order = None  # 1 if time period is calculated first and 0 in other case
+        self._week_days = None
+
+    def every(self, seconds: float = 0,
+              minutes: float = 0,
+              hours: float = 0,
+              days: float = 0,
+              weeks: float = 0,
+              months: float = 0):
+        if months != 0:
+            self._every['months'] = months
+        self._every['delta'] = datetime.timedelta(seconds=seconds, minutes=minutes, hours=hours, days=days, weeks=weeks)
+
+        if self._order is None:
+            self._order = 1
+
+        return self
+
+    def on(self, dt: list[WeekDays] or WeekDays):
+        dt = list(dt)
+        self._week_days = dt
+        if self._order is None:
+            self._order = 0
+
+        return self
+
+    def run(self) -> None:
+        previous_call = None
+        while True:
+            now = datetime.datetime.now()
+            if self._order == 1:
+                if previous_call is None or ('month' in self._every.keys() and (
+                        (previous_call.month + self._every['month']) % 12 + 1) >= now.month):
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
+                        if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+                            self._callback
+                            previous_call = now
+            if self._order == 0:
+                if self._week_days is None or(WeekDays(now.weekday()) in self._week_days):
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
+                        self._callback
+                        previous_call = now
+            print(now - previous_call)
+            time.sleep(1)
