@@ -63,13 +63,13 @@ def fake_db(session: Session, scale=100):
 
 
 class WeekDays(enum.Enum):
-    Monday = 1
-    Tuesday = 2
-    Wednesday = 3
-    Thursday = 4
-    Friday = 5
-    Sunday = 6
-    Saturday = 7
+    Monday = 0
+    Tuesday = 1
+    Wednesday = 2
+    Thursday = 3
+    Friday = 4
+    Sunday = 5
+    Saturday = 6
 
 
 class Schedule(Thread):
@@ -96,8 +96,10 @@ class Schedule(Thread):
         return self
 
     def on(self, dt: list[WeekDays] or WeekDays):
-        dt = list(dt)
-        self._week_days = dt
+        if type(dt) == list:
+            self._week_days = [WeekDays(x) for x in dt]
+        else:
+            self._week_days = [WeekDays(dt)]
         if self._order is None:
             self._order = 0
 
@@ -112,12 +114,16 @@ class Schedule(Thread):
                         (previous_call.month + self._every['month']) % 12 + 1) >= now.month):
                     if previous_call is None or (now >= previous_call + self._every['delta']):
                         if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                            self._callback
+                            self._callback()
+                            previous_call = now
+                elif 'month' not in self._every.keys():
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
+                        if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+                            self._callback()
                             previous_call = now
             if self._order == 0:
-                if self._week_days is None or(WeekDays(now.weekday()) in self._week_days):
+                if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
                     if previous_call is None or (now >= previous_call + self._every['delta']):
-                        self._callback
+                        self._callback()
                         previous_call = now
-            print(now - previous_call)
             time.sleep(1)
