@@ -1,14 +1,12 @@
-import datetime
-import enum
-import math, time
+import datetime, enum, math, time, json
 import numpy as np
 from collections import defaultdict
 
 from sqlalchemy import select, and_, or_
 from faker import Faker
-import json
 from models.db_session import Session, create_session
 from models import questions, users
+from tools import Settings
 from threading import Thread
 
 
@@ -89,11 +87,8 @@ def random_question(person_id: int, group_id: list or int = None) -> int:
             return -1
 
 
-def repetition_function(person_id: int, now=datetime.datetime.now()):
+def repetition_function(person_id: int, now=datetime.datetime.now(), period_function=math.exp):
     repetition_amount = 6
-
-    def period_function(x):
-        return math.pow(2, x)
 
     db = create_session()
     answers_map = defaultdict(list)
@@ -101,7 +96,8 @@ def repetition_function(person_id: int, now=datetime.datetime.now()):
     questions_to_ask_now = []
 
     answers_timeline = db.scalars(
-        select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).order_by(
+        select(questions.QuestionAnswer).where(and_(questions.QuestionAnswer.person_id == person_id,
+                                                    questions.QuestionAnswer.state == questions.AnswerState.ANSWERED)).order_by(
             questions.QuestionAnswer.ask_time.desc())).all()
 
     for answer in answers_timeline:
@@ -112,7 +108,8 @@ def repetition_function(person_id: int, now=datetime.datetime.now()):
         if length < repetition_amount:
             delta = datetime.timedelta(period_function(length))
             questions_to_ask.append((key, delta))
-            if delta + answers_map[key][0].ask_time - datetime.timedelta(seconds=1) <= now <= delta + answers_map[key][0].ask_time + datetime.timedelta(seconds=1):
+            if delta + answers_map[key][0].ask_time - datetime.timedelta(seconds=1) <= now <= delta + answers_map[key][
+                0].ask_time + datetime.timedelta(seconds=1):
                 questions_to_ask_now.append(key)
 
     return questions_to_ask_now, questions_to_ask
@@ -165,6 +162,15 @@ class Schedule(Thread):
 
         return self
 
+    def from_settings(self):
+        self._every = {'delta': Settings()['time_period']}
+        self._order = Settings()['order']
+        self._week_days = Settings()['week_days']
+        self._distribution_function = Settings()['distribution_function']
+        self._repetition_amount = Settings()['repetition_amount']
+
+        return self
+
     def run(self) -> None:
         """The run function of a schedule thread. Note that the order in which you call methods matters.
          on().every() and every().on() play different roles. They in somewhat way mask each-other."""
@@ -176,7 +182,7 @@ class Schedule(Thread):
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
                 for person in persons:
-                    questions_to_ask_now = repetition_function(person.id, now)[0]
+                    questions_to_ask_now = repetition_function(person.id, now, self._distribution_function)[0]
                     if len(questions_to_ask_now) != 0:
                         question_for_person[person.id] = np.random.choice(questions_to_ask_now)
                     else:
@@ -195,17 +201,25 @@ class Schedule(Thread):
                 if previous_call is None or (now >= previous_call + self._every['delta']):
                     previous_call = now
                     if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                        self._callback(args)
+                        self._send_to_people(args)
                         previous_call = now
             elif 'month' not in self._every.keys():
                 if previous_call is None or (now >= previous_call + self._every['delta']):
                     previous_call = now
                     if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                        self._callback(args)
+                        self._send_to_people(args)
                         previous_call = now
         if self._order == 0:
             if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
                 if previous_call is None or (now >= previous_call + self._every['delta']):
-                    self._callback(args)
+                    self._send_to_people(args)
                     previous_call = now
         return previous_call
+
+    def _send_to_people(self, question_to_person):
+        with create_session() as db:
+            for person_id in question_to_person:
+                question_id = question_to_person[person_id]
+                question = db.get(questions.Question, int(question_id))
+                person = db.get(users.Person, person_id)
+                self._callback(person, question)
