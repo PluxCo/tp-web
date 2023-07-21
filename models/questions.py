@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, Time, Enum, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, DateTime, Enum, Table
 from sqlalchemy.orm import relationship
 
 from .db_session import SqlAlchemyBase
@@ -41,7 +41,7 @@ class QuestionAnswer(SqlAlchemyBase):
     question = relationship("Question")
     person_id = Column(ForeignKey("persons.id"))
     person = relationship("Person")
-    person_answer = Column(String)
-    answer_time = Column(Time)
-    ask_time = Column(Time)
+    person_answer = Column(Integer)
+    answer_time = Column(DateTime)
+    ask_time = Column(DateTime)
     state = Column(Enum(AnswerState))
