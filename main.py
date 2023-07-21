@@ -1,10 +1,15 @@
-import datetime, math, schedule
-from web import app as web
-from tools import Settings
+import datetime
+import math
+import schedule
+
 from models import db_session
+from tools import Settings
+from web import app as web
 
 default_settings = {"tg_key": 32266,
                     "time_period": datetime.timedelta(seconds=1),
+                    "from_time": datetime.time(),
+                    "to_time": datetime.time(),
                     "order": 1,
                     "week_days": [schedule.WeekDays.Friday],
                     "distribution_function": math.exp,
