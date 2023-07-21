@@ -2,32 +2,30 @@ import json
 import os
 
 
-class Settings:
+class Settings(dict):
+    def __init__(self):
+        super().__init__()
+
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super(Settings, cls).__new__(cls)
         return cls.instance
 
-    def setup(self, filename):
+    def setup(self, filename, default_values: dict):
         self.file = filename
-        self.data = {}
+
+        for k, v in default_values.items():
+            self.setdefault(k, v)
 
         if not os.path.exists(filename):
             open(filename, "w").close()
-        else:
-            with open(filename, "r") as file:
-                try:
-                    self.data = json.loads(file.read())
-                except json.decoder.JSONDecodeError:
-                    pass
+
+        with open(filename, "r") as file:
+            try:
+                self.update(json.load(file))
+            except json.decoder.JSONDecodeError:
+                pass
 
     def update_settings(self):
         with open(self.file, "w") as file:
-            file.write(json.dumps(self.data))
-
-    def __getitem__(self, item):
-        return self.data[item]
-
-    def __setitem__(self, key, value):
-        self.data[key] = value
-        return value
+            json.dump(self, file)
