@@ -101,9 +101,7 @@ def random_question(person_id: int, group_id: list or int = None) -> int:
             return -1
 
 
-def repetition_function(person_id: int, now=datetime.datetime.now(), period_function=math.exp):
-    repetition_amount = 6
-
+def repetition_function(person_id: int, now=datetime.datetime.now(), period_function=math.exp, repetition_amount=6):
     db = create_session()
     answers_map = defaultdict(list)
     questions_to_ask = []
@@ -122,8 +120,8 @@ def repetition_function(person_id: int, now=datetime.datetime.now(), period_func
         if length < repetition_amount:
             delta = datetime.timedelta(period_function(length))
             questions_to_ask.append((key, delta))
-            if delta + answers_map[key][0].ask_time - datetime.timedelta(seconds=1) <= now <= delta + answers_map[key][
-                0].ask_time + datetime.timedelta(seconds=1):
+            if delta + answers_map[key][0].ask_time - datetime.timedelta(seconds=1) <= now <= \
+                    delta + answers_map[key][0].ask_time + datetime.timedelta(seconds=1):
                 questions_to_ask_now.append(key)
 
     return questions_to_ask_now, questions_to_ask
@@ -135,8 +133,8 @@ class WeekDays(enum.Enum):
     Wednesday = 2
     Thursday = 3
     Friday = 4
-    Sunday = 5
-    Saturday = 6
+    Saturday = 5
+    Sunday = 6
 
 
 class Schedule(Thread):
@@ -148,6 +146,8 @@ class Schedule(Thread):
         self._week_days = None
         self._distribution_function = None
         self._repetition_amount = None
+        self._from_time = None
+        self._to_time = None
 
     def every(self, seconds: float = 0, minutes: float = 0, hours: float = 0,
               days: float = 0, weeks: float = 0, months: float = 0):
@@ -182,6 +182,8 @@ class Schedule(Thread):
         self._week_days = Settings()['week_days']
         self._distribution_function = Settings()['distribution_function']
         self._repetition_amount = Settings()['repetition_amount']
+        self._from_time = Settings()['from_time']
+        self._to_time = Settings()['to_time']
 
         return self
 
@@ -196,7 +198,8 @@ class Schedule(Thread):
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
                 for person in persons:
-                    questions_to_ask_now = repetition_function(person.id, now, self._distribution_function)[0]
+                    questions_to_ask_now = \
+                        repetition_function(person.id, now, self._distribution_function, self._repetition_amount)[0]
                     if len(questions_to_ask_now) != 0:
                         question_for_person[person.id] = np.random.choice(questions_to_ask_now)
                     else:
@@ -209,25 +212,27 @@ class Schedule(Thread):
             time.sleep(1)
 
     def _periodic_call(self, now, previous_call, args):
-        if self._order == 1:
-            if previous_call is None or ('month' in self._every.keys() and (
-                    (previous_call.month + self._every['month']) % 12 + 1) >= now.month):
-                if previous_call is None or (now >= previous_call + self._every['delta']):
-                    previous_call = now
-                    if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+        if self._from_time is None or self._from_time <= now.time() <= self._to_time:
+            if self._order == 1:
+                if previous_call is None or ('month' in self._every.keys() and (
+                        (previous_call.month + self._every['month']) % 12 + 1) >= now.month):
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
+                        previous_call = now
+                        if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+                            self._send_to_people(args)
+                            previous_call = now
+                elif 'month' not in self._every.keys():
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
+                        previous_call = now
+                        if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+                            self._send_to_people(args)
+                            previous_call = now
+            if self._order == 0:
+                if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
+                    if previous_call is None or (now >= previous_call + self._every['delta']):
                         self._send_to_people(args)
                         previous_call = now
-            elif 'month' not in self._every.keys():
-                if previous_call is None or (now >= previous_call + self._every['delta']):
-                    previous_call = now
-                    if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                        self._send_to_people(args)
-                        previous_call = now
-        if self._order == 0:
-            if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                if previous_call is None or (now >= previous_call + self._every['delta']):
-                    self._send_to_people(args)
-                    previous_call = now
+
         return previous_call
 
     def _send_to_people(self, question_to_person):
