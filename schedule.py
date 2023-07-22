@@ -211,7 +211,7 @@ class Schedule(Thread):
 
         for answer in transferred_questions:  # Add questions which were transferred to the database as planed
             if answer.question_id not in questions_to_ask:
-                answer.state = questions.AnswerState.INCORRECT
+                answer.state = questions.AnswerState.ANSWERED
 
                 planned_answer = questions.QuestionAnswer()
                 planned_answer.ask_time = now + self._every
