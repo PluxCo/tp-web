@@ -1,6 +1,8 @@
 import datetime
 import enum
 import math, time
+import random
+
 import numpy as np
 from collections import defaultdict
 
@@ -42,7 +44,7 @@ def fake_db(session: Session, scale=100):
 
         options = [fake.sentence(), fake.sentence(), fake.sentence(), fake.sentence()]
         question.options = json.dumps(options, ensure_ascii=False)
-        question.answer = fake.random_element(elements=options)
+        question.answer = random.randint(1, 4)
 
         question.level = fake.random_int(min=1, max=5)
         question.article_url = fake.url()
