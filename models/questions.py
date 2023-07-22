@@ -11,6 +11,7 @@ class AnswerState(enum.Enum):
     NOT_ANSWERED = 0
     TRANSFERRED = 1
     ANSWERED = 2
+    INCORRECT = 3
 
 
 class QuestionGroupAssociation(SqlAlchemyBase):
