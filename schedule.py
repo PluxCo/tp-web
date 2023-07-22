@@ -170,7 +170,7 @@ class Schedule(Thread):
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
                 for person in persons:
-                    questions_to_ask_now = self.repetition_function(person.id, now)
+                    questions_to_ask_now = self._plan_questions(person.id, now)
                     if len(questions_to_ask_now) != 0:
                         question_for_person[person.id] = np.random.choice(questions_to_ask_now)
                     else:
@@ -182,7 +182,7 @@ class Schedule(Thread):
                 previous_call = self._periodic_call(now, previous_call, question_for_person)
             time.sleep(1)
 
-    def repetition_function(self, person_id: int, now=datetime.datetime.now()):
+    def _plan_questions(self, person_id: int, now=datetime.datetime.now()):
         db = create_session()
         answers_map = defaultdict(list)
         questions_to_ask = []
