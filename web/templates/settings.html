@@ -35,7 +35,7 @@
                             {{ "\n".join(error) }}
                         </div>
                     {% endfor %}
-                    <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                    {{ create_group_form.create_group(class_="btn btn-success float-end") }}
                 </form>
             </div>
         </div>
@@ -52,7 +52,7 @@
                         {{ "\n".join(error) }}
                     </div>
                 {% endfor %}
-                <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                {{ tg_settings_form.save_tg(class_="btn btn-success float-end") }}
             </form>
         </div>
         <div class="row">
@@ -80,7 +80,7 @@
                         {{ "\n".join(error) }}
                     </div>
                 {% endfor %}
-                <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                {{ schedule_settings_form.save_schedule(class_="btn btn-success float-end") }}
             </form>
         </div>
     </div>
