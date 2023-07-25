@@ -8,6 +8,7 @@ from sqlalchemy import select
 from models import db_session
 from models import users, questions
 from models.users import Person
+from tools import Settings
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from models.questions import Question, QuestionAnswer
 import telebot
@@ -45,7 +46,7 @@ def submit_buttons(call: CallbackQuery):
 
 
 def password_check(message: Message):
-    if message.text == os.environ['PASSWORD']:
+    if message.text == Settings()["tg_pin"]:
         person_in_db = False
         with db_session.create_session() as db:
             if db.scalar(select(users.Person).where(users.Person.tg_id == message.chat.id)):
@@ -130,7 +131,7 @@ def send_question(person: Person, pending_question: Question):
     for answer_index in range(len(options)):
         question_text += '\n' + str(answer_index + 1) + '. ' + options[answer_index]
         buttons.append(InlineKeyboardButton(answer_index + 1, callback_data='answer_' + str(answer_index + 1)))
-    markup.add(*buttons, InlineKeyboardButton('Не знаю:(', callback_data='answer_0',), row_width=len(buttons))
+    markup.add(*buttons, InlineKeyboardButton('Не знаю:(', callback_data='answer_0', ), row_width=len(buttons))
     question[person.tg_id] = pending_question
     bot.send_message(person.tg_id, question_text, reply_markup=markup)
 

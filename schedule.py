@@ -89,7 +89,7 @@ class WeekDays(enum.Enum):
 
 class Schedule(Thread):
     def __init__(self, callback):
-        super().__init__()
+        super().__init__(daemon=True)
         self._callback = callback
         self._every = None
         self._order = None  # 1 if time period is calculated first and 0 in other case
