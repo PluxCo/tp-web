@@ -265,7 +265,7 @@ class Schedule(Thread):
                 person = db.get(users.Person, person_id)
                 self._callback(person, question)
 
-                # Move the lines bellow to bot.py
+                # TODO: Move the lines bellow to check_answer in bot.py
                 #
                 # with db_session.create_session() as db:
                 #     question_id = question[call.from_user.id].id
