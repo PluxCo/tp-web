@@ -1,4 +1,4 @@
-import json
+import pickle
 import os
 
 
@@ -18,14 +18,12 @@ class Settings(dict):
             self.setdefault(k, v)
 
         if not os.path.exists(filename):
-            open(filename, "w").close()
+            with open(filename, "wb") as file:
+                pickle.dump(Settings(), file)
 
-        with open(filename, "r") as file:
-            try:
-                self.update(json.load(file))
-            except json.decoder.JSONDecodeError:
-                pass
+        with open(filename, "rb") as file:
+            self.update(pickle.load(file))
 
     def update_settings(self):
-        with open(self.file, "w") as file:
-            json.dump(self, file)
+        with open(self.file, "wb") as file:
+            pickle.dump(self, file)
