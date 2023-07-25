@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
 from sqlalchemy import exists
+from wtforms import SubmitField
 from wtforms.fields import PasswordField, StringField
 from wtforms.validators import DataRequired, ValidationError
 
@@ -12,6 +13,8 @@ class LoginForm(FlaskForm):
 
 class CreateGroupForm(FlaskForm):
     name = StringField("Label", validators=[DataRequired()])
+
+    create_group = SubmitField("Create")
 
     def validate_name(self, field):
         db = db_session.create_session()
