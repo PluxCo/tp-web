@@ -125,19 +125,19 @@ def select_groups(call: CallbackQuery):
 def send_question(person: Person, pending_question: Question):
     markup = InlineKeyboardMarkup()
     options = json.loads(pending_question.options)
+    question_text = pending_question.text
+    buttons = []
     for answer_index in range(len(options)):
-        markup.add(
-            InlineKeyboardButton(options[answer_index],
-                                 callback_data='answer_' + str(answer_index + 1)))
-    markup.add(InlineKeyboardButton('Не знаю:(', callback_data='answer_0'))
+        question_text += '\n' + str(answer_index + 1) + '. ' + options[answer_index]
+        buttons.append(InlineKeyboardButton(answer_index + 1, callback_data='answer_' + str(answer_index + 1)))
+    markup.add(*buttons, InlineKeyboardButton('Не знаю:(', callback_data='answer_0',), row_width=len(buttons))
     question[person.tg_id] = pending_question
-    bot.send_message(person.tg_id, pending_question.text, reply_markup=markup)
+    bot.send_message(person.tg_id, question_text, reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('answer'))
 def check_answer(call: CallbackQuery):
-    # with db_session.create_session() as db:
-    # print(question[call.from_user.id].answer)
+    bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
     if call.data.split('_')[1] == str(question[call.from_user.id].answer):
         bot.send_message(call.from_user.id, 'Юхуууу, правильный ответ, на тебе котика')
         bot.send_sticker(call.message.chat.id,
@@ -145,10 +145,13 @@ def check_answer(call: CallbackQuery):
     else:
         if question[call.from_user.id].article_url:
             bot.send_message(call.from_user.id,
-                             'Как жаль, ответ неправильный. Вот тебе интересная статья по этой теме.'
+                             'Как жаль, ответ неправильный. Правильный ответ - '
+                             + str(question[call.from_user.id].answer)
+                             + '. Вот тебе интересная статья по этой теме.'
                              + '\n' + question[call.from_user.id].article_url)
         else:
-            bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик')
+            bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик. '
+                                                'Правильный ответ ' + str(question[call.from_user.id].answer))
             bot.send_sticker(call.from_user.id,
                              'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
     return int(call.data.split('_')[1])
