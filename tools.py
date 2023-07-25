@@ -13,6 +13,7 @@ class Settings(dict):
 
     def setup(self, filename, default_values: dict):
         self.file = filename
+        self._update_handlers = []
 
         for k, v in default_values.items():
             self.setdefault(k, v)
@@ -27,3 +28,8 @@ class Settings(dict):
     def update_settings(self):
         with open(self.file, "wb") as file:
             pickle.dump(self, file)
+        for handler in self._update_handlers:
+            handler()
+
+    def add_update_handler(self, handler):
+        self._update_handlers.append(handler)

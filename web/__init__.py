@@ -104,13 +104,14 @@ def settings_page():
         db.add(new_user)
         db.commit()
 
-        create_group_form = CreateGroupForm(formdata=None)
+        return redirect("/settings")
 
     if tg_settings_form.save_tg.data and tg_settings_form.validate():
         settings = tools.Settings()
         settings["tg_pin"] = tg_settings_form.tg_pin.data
 
         settings.update_settings()
+        return redirect("/settings")
 
     if schedule_settings_form.save_schedule.data and schedule_settings_form.validate():
         settings = tools.Settings()
@@ -120,6 +121,7 @@ def settings_page():
         settings["to_time"] = schedule_settings_form.to_time.data
 
         settings.update_settings()
+        return redirect("/settings")
 
     groups = db.scalars(select(users.PersonGroup))
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
