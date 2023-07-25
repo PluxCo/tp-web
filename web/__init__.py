@@ -3,13 +3,15 @@ import os
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from wtforms.validators import ValidationError
-from sqlalchemy import select, exists
+from sqlalchemy import select
 
+import schedule
+import tools
 from models import db_session
 from models import users, questions
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm
+from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -92,14 +94,36 @@ def questions_page():
 def settings_page():
     db = db_session.create_session()
     create_group_form = CreateGroupForm()
+    tg_settings_form = TelegramSettingsForm(data=tools.Settings())
+    schedule_settings_form = ScheduleSettingsForm(data=tools.Settings(),
+                                                  week_days=[d.value for d in tools.Settings()["week_days"]])
 
-    if create_group_form.validate_on_submit():
+    if create_group_form.create_group.data and create_group_form.validate():
         new_user = users.PersonGroup()
         new_user.name = create_group_form.name.data
         db.add(new_user)
         db.commit()
 
-        create_group_form = CreateGroupForm(formdata=None)
+        return redirect("/settings")
+
+    if tg_settings_form.save_tg.data and tg_settings_form.validate():
+        settings = tools.Settings()
+        settings["tg_pin"] = tg_settings_form.tg_pin.data
+
+        settings.update_settings()
+        return redirect("/settings")
+
+    if schedule_settings_form.save_schedule.data and schedule_settings_form.validate():
+        settings = tools.Settings()
+        settings["time_period"] = schedule_settings_form.time_period.data
+        settings["week_days"] = [schedule.WeekDays(d) for d in schedule_settings_form.week_days.data]
+        settings["from_time"] = schedule_settings_form.from_time.data
+        settings["to_time"] = schedule_settings_form.to_time.data
+
+        settings.update_settings()
+        return redirect("/settings")
 
     groups = db.scalars(select(users.PersonGroup))
-    return render_template("settings.html", create_group_form=create_group_form, groups=groups)
+    return render_template("settings.html", create_group_form=create_group_form, groups=groups,
+                           schedule_settings_form=schedule_settings_form,
+                           tg_settings_form=tg_settings_form)

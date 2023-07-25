@@ -35,9 +35,53 @@
                             {{ "\n".join(error) }}
                         </div>
                     {% endfor %}
-                    <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                    {{ create_group_form.create_group(class_="btn btn-success float-end") }}
                 </form>
             </div>
+        </div>
+        <div class="row">
+            <h3>Telegram</h3>
+            <form method="POST" action="">
+                {{ tg_settings_form.csrf_token }}
+                <div class="mb-3">
+                    {{ tg_settings_form.tg_pin.label(class_="form-label") }}
+                    {{ tg_settings_form.tg_pin(class_="form-control") }}
+                </div>
+                {% for field, error in tg_settings_form.errors.items() %}
+                    <div class="alert alert-warning">
+                        {{ "\n".join(error) }}
+                    </div>
+                {% endfor %}
+                {{ tg_settings_form.save_tg(class_="btn btn-success float-end") }}
+            </form>
+        </div>
+        <div class="row">
+            <h3>Schedule</h3>
+            <form method="POST" action="">
+                {{ schedule_settings_form.csrf_token }}
+                <div class="mb-3">
+                    {{ schedule_settings_form.time_period.label(class_="form-label") }}
+                    {{ schedule_settings_form.time_period(class_="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ schedule_settings_form.week_days.label(class_="form-label") }}
+                    {{ schedule_settings_form.week_days(class_="form-control selectpicker") }}
+                </div>
+                <div class="mb-3">
+                    {{ schedule_settings_form.from_time.label(class_="form-label") }}
+                    {{ schedule_settings_form.from_time(class_="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ schedule_settings_form.to_time.label(class_="form-label") }}
+                    {{ schedule_settings_form.to_time(class_="form-control") }}
+                </div>
+                {% for field, error in schedule_settings_form.errors.items() %}
+                    <div class="alert alert-warning">
+                        {{ "\n".join(error) }}
+                    </div>
+                {% endfor %}
+                {{ schedule_settings_form.save_schedule(class_="btn btn-success float-end") }}
+            </form>
         </div>
     </div>
 {% endblock %}
