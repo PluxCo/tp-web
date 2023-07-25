@@ -14,7 +14,7 @@ class TimeDeltaField(StringField):
     def _value(self):
         if self.data:
             return self.dump_time_delta(self.data)
-        return datetime.timedelta()
+        return ""
 
     def process_formdata(self, valuelist):
         if valuelist:
@@ -70,6 +70,5 @@ class ScheduleSettingsForm(FlaskForm):
     save_schedule = SubmitField("Save")
 
     def validate_time_period(self, field):
-        print("asd")
         if field.data.total_seconds() < 30:
             raise ValidationError("Time delta should be at least 30 seconds")
