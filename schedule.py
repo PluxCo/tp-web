@@ -2,9 +2,10 @@ import datetime
 import enum
 import json
 import math
+import string
 import time
 from collections import defaultdict
-from threading import Thread
+from threading import Thread, Timer
 
 import numpy as np
 from faker import Faker
@@ -70,35 +71,10 @@ def fake_db(session: Session, scale=None):
         answer.ask_time = answer.answer_time
 
         answer.person_answer = np.random.randint(1, 5)
-        answer.state = questions.AnswerState(2 if answer.person_answer == answer.question.answer else 1)
+        answer.state = questions.AnswerState.ANSWERED
 
         db.add(answer)
     db.commit()
-
-
-def random_question(person_id: int, group_id: list or int = None) -> int:
-    """Gives random question id within the same group, which hasn't been asked yet otherwise returns -1"""
-
-    with create_session() as db:
-        person = db.scalar(select(users.Person).where(users.Person.id == person_id))
-        if group_id is None:
-            groups = [x.id for x in person.groups]
-        elif group_id is int:
-            groups = [group_id]
-        else:
-            groups = group_id
-        groups: list
-
-        question_ids = [x.id for x in db.scalars(
-            select(questions.Question).join(questions.Question.groups).where(users.PersonGroup.id.in_(groups)))]
-        answered_question_ids = [x.question_id for x in db.scalars(
-            select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id))]
-
-        result_list = list(set(question_ids).difference(answered_question_ids))
-        if len(result_list) > 0:
-            return np.random.choice(result_list)
-        else:
-            return -1
 
 
 class WeekDays(enum.Enum):
@@ -174,15 +150,44 @@ class Schedule(Thread):
                     if len(questions_to_ask_now) != 0:
                         question_for_person[person.id] = np.random.choice(questions_to_ask_now)
                     else:
-                        question_for_person[person.id] = random_question(person.id)
+                        question_for_person[person.id] = self._random_question(person.id)
                 previous_call = self._periodic_call(now, previous_call, question_for_person)
             else:
                 for person in persons:
-                    question_for_person[person.id] = random_question(person.id)
+                    question_for_person[person.id] = self._random_question(person.id)
                 previous_call = self._periodic_call(now, previous_call, question_for_person)
             time.sleep(1)
 
+    def _random_question(self, person_id: int, group_id: list or int = None) -> int:
+        """Gives random question id within the same group, which hasn't been asked yet if such question exists
+        """
+
+        with create_session() as db:
+            person = db.scalar(select(users.Person).where(users.Person.id == person_id))
+            search_window = datetime.timedelta(self._distribution_function(self._repetition_amount))
+
+            if group_id is None:
+                groups = [x.id for x in person.groups]
+            elif group_id is int:
+                groups = [group_id]
+            else:
+                groups = group_id
+            groups: list
+
+            question_ids = [x.id for x in db.scalars(
+                select(questions.Question).join(questions.Question.groups).where(users.PersonGroup.id.in_(groups)))]
+            answered_question_ids = [x.question_id for x in db.scalars(
+                select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
+                    questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window))]
+
+            result_list = list(set(question_ids).difference(answered_question_ids))
+            if len(result_list) > 0:
+                return np.random.choice(result_list)
+            else:
+                return np.random.choice(question_ids)
+
     def _plan_questions(self, person_id: int, now=datetime.datetime.now()):
+        tic = time.perf_counter()
         db = create_session()
         answers_map = defaultdict(list)
         questions_to_ask = []
@@ -224,13 +229,12 @@ class Schedule(Thread):
             length = len(answers_map[key])
             if length < self._repetition_amount:
                 delta = datetime.timedelta(self._distribution_function(length))
-                if delta + answers_map[key][0].ask_time <= now:
-                    planned_answer = questions.QuestionAnswer()
-                    planned_answer.ask_time = now
-                    planned_answer.state = questions.AnswerState.NOT_ANSWERED
-                    planned_answer.question_id = key
-                    planned_answer.person_id = person_id
-                    db.add(planned_answer)
+                planned_answer = questions.QuestionAnswer()
+                planned_answer.ask_time = delta + answers_map[key][0].ask_time
+                planned_answer.state = questions.AnswerState.NOT_ANSWERED
+                planned_answer.question_id = key
+                planned_answer.person_id = person_id
+                db.add(planned_answer)
 
         db.commit()
         return questions_to_ask
@@ -259,27 +263,34 @@ class Schedule(Thread):
 
                 question = db.get(questions.Question, int(question_id))
                 person = db.get(users.Person, person_id)
-                person_answer = self._callback(person, question)
-                # person_answer = 1
+                self._callback(person, question)
 
-                planned_question = db.scalar(select(questions.QuestionAnswer).where(
-                    questions.QuestionAnswer.person_id == person_id).where(
-                    questions.QuestionAnswer.question_id == question_id).where(
-                    questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED))
-                if planned_question is not None:
-                    planned_question.person_answer = person_answer
-                    planned_question.state = questions.AnswerState.ANSWERED if person_answer == question.answer else \
-                        questions.AnswerState.TRANSFERRED
-                    planned_question.answer_time = datetime.datetime.now()
-                    db.commit()
-                else:
-                    planned_question = questions.QuestionAnswer()
-                    planned_question.answer_time = datetime.datetime.now()
-                    planned_question.ask_time = now
-                    planned_question.question_id = question_id
-                    planned_question.person_answer = person_answer
-                    planned_question.person_id = person_id
-                    planned_question.state = questions.AnswerState.ANSWERED if person_answer == question.answer else \
-                        questions.AnswerState.TRANSFERRED
-                    db.add(planned_question)
-            db.commit()
+                # Move the lines bellow to bot.py
+                #
+                # with db_session.create_session() as db:
+                #     question_id = question[call.from_user.id].id
+                #     person_answer = int(call.data.split('_')[1])
+                #     person_id = db.scalar(select(users.Person).where(users.Person.tg_id == call.from_user.id)).id
+                #     planned_question = db.scalar(select(questions.QuestionAnswer).where(
+                #         questions.QuestionAnswer.person_id == person_id).where(
+                #         questions.QuestionAnswer.question_id == question_id).where(
+                #         questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED))
+                #     if planned_question is not None:
+                #         planned_question.person_answer = person_answer
+                #         planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
+                #             call.from_user.id].answer else \
+                #             questions.AnswerState.TRANSFERRED
+                #         planned_question.answer_time = datetime.datetime.now()
+                #         db.commit()
+                #     else:
+                #         planned_question = questions.QuestionAnswer()
+                #         planned_question.answer_time = datetime.datetime.now()
+                #         planned_question.ask_time = planned_question.answer_time
+                #         planned_question.question_id = question_id
+                #         planned_question.person_answer = person_answer
+                #         planned_question.person_id = person_id
+                #         planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
+                #             call.from_user.id].answer else \
+                #             questions.AnswerState.TRANSFERRED
+                #         db.add(planned_question)
+                #     db.commit()
