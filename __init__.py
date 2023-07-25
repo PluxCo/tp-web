@@ -3,13 +3,13 @@ import os
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from wtforms.validators import ValidationError
 from sqlalchemy import select, exists
 
 from models import db_session
 from models import users, questions
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm
+from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -92,6 +92,8 @@ def questions_page():
 def settings_page():
     db = db_session.create_session()
     create_group_form = CreateGroupForm()
+    tg_settings_form = TelegramSettingsForm()
+    schedule_settings_form = ScheduleSettingsForm()
 
     if create_group_form.validate_on_submit():
         new_user = users.PersonGroup()
@@ -102,4 +104,6 @@ def settings_page():
         create_group_form = CreateGroupForm(formdata=None)
 
     groups = db.scalars(select(users.PersonGroup))
-    return render_template("settings.html", create_group_form=create_group_form, groups=groups)
+    return render_template("settings.html", create_group_form=create_group_form, groups=groups,
+                           schedule_settings_form=schedule_settings_form,
+                           tg_settings_form=tg_settings_form)
