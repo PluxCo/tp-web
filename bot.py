@@ -155,7 +155,34 @@ def check_answer(call: CallbackQuery):
                                                 'Правильный ответ ' + str(question[call.from_user.id].answer))
             bot.send_sticker(call.from_user.id,
                              'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
-    return int(call.data.split('_')[1])
+
+    with db_session.create_session() as db:
+        question_id = question[call.from_user.id].id
+        person_answer = int(call.data.split('_')[1])
+        person_id = db.scalar(select(users.Person).where(users.Person.tg_id == call.from_user.id)).id
+        planned_question = db.scalar(select(questions.QuestionAnswer).where(
+            questions.QuestionAnswer.person_id == person_id).where(
+            questions.QuestionAnswer.question_id == question_id).where(
+            questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED))
+        if planned_question is not None:
+            planned_question.person_answer = person_answer
+            planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
+                call.from_user.id].answer else \
+                questions.AnswerState.TRANSFERRED
+            planned_question.answer_time = datetime.datetime.now()
+            db.commit()
+        else:
+            planned_question = questions.QuestionAnswer()
+            planned_question.answer_time = datetime.datetime.now()
+            planned_question.ask_time = planned_question.answer_time
+            planned_question.question_id = question_id
+            planned_question.person_answer = person_answer
+            planned_question.person_id = person_id
+            planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
+                call.from_user.id].answer else \
+                questions.AnswerState.TRANSFERRED
+            db.add(planned_question)
+        db.commit()
 
 
 def start_bot():
