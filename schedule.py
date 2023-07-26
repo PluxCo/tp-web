@@ -98,7 +98,7 @@ class Schedule(Thread):
         self._repetition_amount = None
         self._from_time = None
         self._to_time = None
-        Settings().add_update_handler(self.from_settings())
+        Settings().add_update_handler(self.from_settings)
 
     def every(self, seconds: float = 0, minutes: float = 0, hours: float = 0,
               days: float = 0, weeks: float = 0):
