@@ -2,6 +2,7 @@ import datetime
 import enum
 import json
 import math
+import random
 import string
 import time
 from collections import defaultdict
@@ -183,9 +184,17 @@ class Schedule(Thread):
 
             result_list = list(set(question_ids).difference(answered_question_ids))
             if len(result_list) > 0:
-                return np.random.choice(result_list)
+                question = random.choice(result_list)
             else:
-                return np.random.choice(question_ids)
+                question = random.choice(question_ids)
+            planned_question = questions.QuestionAnswer()
+            planned_question.ask_time = datetime.datetime.now()
+            planned_question.question_id = question
+            planned_question.person_id = person_id
+            planned_question.state = questions.AnswerState.NOT_ANSWERED
+            db.add(planned_question)
+            db.commit()
+            return question
 
     def _plan_questions(self, person_id: int, now=datetime.datetime.now()):
         tic = time.perf_counter()

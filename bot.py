@@ -166,23 +166,9 @@ def check_answer(call: CallbackQuery):
             questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED))
         if planned_question is not None:
             planned_question.person_answer = person_answer
-            planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
-                call.from_user.id].answer else \
-                questions.AnswerState.TRANSFERRED
+            planned_question.state = questions.AnswerState.ANSWERED
             planned_question.answer_time = datetime.datetime.now()
             db.commit()
-        else:
-            planned_question = questions.QuestionAnswer()
-            planned_question.answer_time = datetime.datetime.now()
-            planned_question.ask_time = planned_question.answer_time
-            planned_question.question_id = question_id
-            planned_question.person_answer = person_answer
-            planned_question.person_id = person_id
-            planned_question.state = questions.AnswerState.ANSWERED if person_answer == question[
-                call.from_user.id].answer else \
-                questions.AnswerState.TRANSFERRED
-            db.add(planned_question)
-        db.commit()
 
 
 def start_bot():

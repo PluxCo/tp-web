@@ -10,7 +10,7 @@ from web import app as web
 
 default_settings = {"tg_pin": "32266",
                     "time_period": datetime.timedelta(days=1),
-                    "from_time": datetime.time(10),
+                    "from_time": datetime.time(7),
                     "to_time": datetime.time(20),
                     "order": 1,
                     "week_days": [schedule.WeekDays(d) for d in range(7)],
