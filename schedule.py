@@ -3,10 +3,9 @@ import enum
 import json
 import math
 import random
-import string
 import time
 from collections import defaultdict
-from threading import Thread, Timer
+from threading import Thread
 
 import numpy as np
 from faker import Faker
@@ -144,24 +143,15 @@ class Schedule(Thread):
         previous_call = None
         while True:
             persons = db.scalars(select(users.Person)).all()
-            question_for_person = {}
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
-                for person in persons:
-                    questions_to_ask_now = self._plan_questions(person.id, now)
-                    if len(questions_to_ask_now) != 0:
-                        question_for_person[person.id] = np.random.choice(questions_to_ask_now)
-                    else:
-                        question_for_person[person.id] = self._random_question(person.id)
-                previous_call = self._periodic_call(now, previous_call, question_for_person)
-            else:
-                for person in persons:
-                    question_for_person[person.id] = self._random_question(person.id)
-                previous_call = self._periodic_call(now, previous_call, question_for_person)
+                previous_call = self._periodic_call(now, previous_call, persons)
             time.sleep(1)
 
     def _random_question(self, person_id: int, group_id: list or int = None) -> int:
-        """Gives random question id within the same group, which hasn't been asked yet if such question exists
+        """
+            Gives random question id within the same group, which hasn't been asked yet if such question exists
+            Also adds this question to the database as a planned.
         """
 
         with create_session() as db:
@@ -196,8 +186,7 @@ class Schedule(Thread):
             db.commit()
             return question
 
-    def _plan_questions(self, person_id: int, now=datetime.datetime.now()):
-        tic = time.perf_counter()
+    def _plan_questions(self, person_id: int):
         db = create_session()
         answers_map = defaultdict(list)
         questions_to_ask = []
@@ -215,11 +204,6 @@ class Schedule(Thread):
                 questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
                 questions.QuestionAnswer.ask_time.desc())).all()
 
-        transferred_questions = db.scalars(
-            select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
-                questions.QuestionAnswer.state == questions.AnswerState.TRANSFERRED).order_by(
-                questions.QuestionAnswer.ask_time.desc())).all()
-
         for answer in planned_questions:  # Add questions which were planned to ask before to the list
             questions_to_ask.append(answer.question_id)
             if answer.ask_time <= datetime.datetime.now():
@@ -228,17 +212,6 @@ class Schedule(Thread):
         for answer in answered_questions:  # Add questions which were not planned yet to the map of questions for repeat
             if answer.question_id not in questions_to_ask:
                 answers_map[answer.question_id].append(answer)
-
-        for answer in transferred_questions:  # Add questions which were transferred to the database as planed
-            if answer.question_id not in questions_to_ask:
-                answer.state = questions.AnswerState.ANSWERED
-
-                planned_answer = questions.QuestionAnswer()
-                planned_answer.ask_time = now + self._every
-                planned_answer.state = questions.AnswerState.NOT_ANSWERED
-                planned_answer.question_id = answer.question_id
-                planned_answer.person_id = person_id
-                db.add(planned_answer)
 
         for key in answers_map:  # Add questions which require repetition to the database as planed
             length = len(answers_map[key])
@@ -254,23 +227,26 @@ class Schedule(Thread):
         db.commit()
         return questions_to_ask_now
 
-    def _periodic_call(self, now, previous_call, args):
+    def _periodic_call(self, now, previous_call, persons):
+        question_for_person = {}
+
         if self._from_time is None or self._from_time <= now.time() <= self._to_time:
-            if self._order == 1:
-                if previous_call is None or (now >= previous_call + self._every):
+            if previous_call is None or (now >= previous_call + self._every):
+                if self._order == 1:
                     previous_call = now
-                    if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                        self._send_to_people(args, now)
-                        previous_call = now
-            if self._order == 0:
                 if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                    if previous_call is None or (now >= previous_call + self._every):
-                        self._send_to_people(args, now)
-                        previous_call = now
+                    for person in persons:
+                        questions_to_ask_now = self._plan_questions(person.id)
+                        if len(questions_to_ask_now) != 0:
+                            question_for_person[person.id] = np.random.choice(questions_to_ask_now)
+                        else:
+                            question_for_person[person.id] = self._random_question(person.id)
+                    self._send_to_people(question_for_person)
+                    previous_call = now
 
         return previous_call
 
-    def _send_to_people(self, question_to_person, now):
+    def _send_to_people(self, question_to_person):
         with create_session() as db:
             for person_id in question_to_person:
                 question_id = int(question_to_person[person_id])
@@ -278,4 +254,12 @@ class Schedule(Thread):
 
                 question = db.get(questions.Question, int(question_id))
                 person = db.get(users.Person, person_id)
-                self._callback(person, question)
+                self._callback(person, question)  # Send a question to a person
+
+                answer = db.scalars(select(questions.QuestionAnswer).where(
+                    questions.QuestionAnswer.question_id == question.id).where(
+                    questions.QuestionAnswer.person_id == person_id).where(
+                    questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
+                    questions.QuestionAnswer.ask_time)).first()
+                answer.state = questions.AnswerState.TRANSFERRED  # Mark an answer as transferred (sent)
+                db.commit()
