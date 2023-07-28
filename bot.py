@@ -162,10 +162,11 @@ def check_answer(call: CallbackQuery):
         question_id = merged_question.id
         person_answer = int(call.data.split('_')[1])
         person_id = db.scalar(select(users.Person).where(users.Person.tg_id == call.from_user.id)).id
-        planned_question = db.scalar(select(questions.QuestionAnswer).where(
+        planned_question = db.scalars(select(questions.QuestionAnswer).where(
             questions.QuestionAnswer.person_id == person_id).where(
             questions.QuestionAnswer.question_id == question_id).where(
-            questions.QuestionAnswer.state == questions.AnswerState.TRANSFERRED))
+            questions.QuestionAnswer.state == questions.AnswerState.TRANSFERRED).order_by(
+            questions.QuestionAnswer.ask_time)).first()
         if planned_question is not None:
             planned_question.person_answer = person_answer
             planned_question.state = questions.AnswerState.ANSWERED
