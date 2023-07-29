@@ -8,6 +8,11 @@ import schedule
 from tools import Settings
 from web import app as web
 
+# Environment variables
+# ADMIN_PASSWD: password for web panel
+# TGTOKEN: token for telegram bot
+
+
 default_settings = {"tg_pin": "32266",
                     "time_period": datetime.timedelta(days=1),
                     "from_time": datetime.time(10),
