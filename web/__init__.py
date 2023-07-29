@@ -9,6 +9,8 @@ import schedule
 import tools
 from models import db_session
 from models import users, questions
+from models.questions import QuestionAnswer
+from models.users import Person
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
@@ -55,6 +57,14 @@ def main_page():
     return render_template("index.html")
 
 
+@app.route("/statistic/<int:person_id>")
+def statistic_page(person_id):
+    with db_session.create_session() as db:
+        person = db.scalars(select(Person).where(Person.id == person_id)).first()
+
+        return render_template("statistic.html", person=person, AnswerState=questions.AnswerState)
+
+
 @app.route("/questions", methods=["POST", "GET"])
 @login_required
 def questions_page():
@@ -71,7 +81,7 @@ def questions_page():
         new_question = questions.Question(text=create_question_form.text.data,
                                           subject=create_question_form.subject.data,
                                           options=options,
-                                          answer=create_question_form.answer.data - 1,
+                                          answer=create_question_form.answer.data,
                                           level=create_question_form.level.data,
                                           article_url=create_question_form.article.data)
 
