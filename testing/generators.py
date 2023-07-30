@@ -2,6 +2,8 @@ import json
 
 import numpy as np
 from faker import Faker
+from sqlalchemy import select
+
 from models.db_session import Session
 
 from models import users, questions
@@ -41,7 +43,7 @@ def fake_db(session: Session, scale=None):
         question.options = json.dumps(options, ensure_ascii=False)
         question.answer = np.random.randint(1, 5)
 
-        question.level = fake.random_int(min=1, max=5)
+        question.level = np.random.randint(1, 5)
         question.article_url = fake.url()
         question.groups.append(fake.random_element(elements=group_list))
         question.subject = fake.word()
@@ -65,4 +67,8 @@ def fake_db(session: Session, scale=None):
         answer.state = questions.AnswerState.ANSWERED
 
         db.add(answer)
+    db.commit()
+
+    for group in db.scalars(select(users.PersonGroupAssociation)):
+        group.target_level = np.random.randint(1, 5)
     db.commit()

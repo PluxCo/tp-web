@@ -7,7 +7,7 @@ from collections import defaultdict
 from threading import Thread
 
 import numpy as np
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 
 from models import questions, users
 from models.db_session import create_session
@@ -22,6 +22,44 @@ class WeekDays(enum.Enum):
     Friday = 4
     Saturday = 5
     Sunday = 6
+
+
+def half_normal(location, standard_deviation):
+    n = np.random.normal(location, standard_deviation)
+    if n > location:
+        n2 = np.random.normal(location, standard_deviation)
+        return n2
+    return n
+
+
+def person_levels(person_id) -> dict:
+    with create_session() as db:
+        # Returns the average level of questions which were answered incorrectly
+
+        person_groups = [group.id for group in db.get(users.Person, person_id).groups]
+        group_levels = dict()
+
+        for group in person_groups:
+            correct_answers_sum = \
+                db.query(func.sum(questions.Question.level)).join(questions.QuestionAnswer.question).filter(
+                    questions.QuestionAnswer.question.has(and_(
+                        questions.Question.answer == questions.QuestionAnswer.person_answer,
+                        questions.Question.groups.any(questions.QuestionGroupAssociation.group_id == group),
+                        questions.QuestionAnswer.person_id == person_id
+                    ))).first()[0]
+
+            correct_answers = \
+                db.query(func.count(questions.Question.level)).join(questions.QuestionAnswer.question).filter(
+                    questions.QuestionAnswer.question.has(and_(
+                        questions.Question.answer == questions.QuestionAnswer.person_answer,
+                        questions.Question.groups.any(questions.QuestionGroupAssociation.group_id == group),
+                        questions.QuestionAnswer.person_id == person_id
+                    ))).first()[0]
+
+            group_levels[group] = round(correct_answers_sum / correct_answers if correct_answers != 0 else 1,
+                                        2)
+
+        return group_levels
 
 
 class Schedule(Thread):
@@ -85,27 +123,45 @@ class Schedule(Thread):
                 previous_call = self._periodic_call(now, previous_call, persons)
             time.sleep(1)
 
-    def _random_question(self, person_id: int, group_id: list or int = None) -> int:
+    def _random_question(self, person_id: int) -> int:
         """
             Gives random question id within the same group, which hasn't been asked yet if such question exists
             Also adds this question to the database as a planned.
+
         """
 
         with create_session() as db:
-            person = db.scalar(select(users.Person).where(users.Person.id == person_id))
+            groups = db.scalars(
+                select(users.PersonGroupAssociation).where(users.PersonGroupAssociation.person_id == person_id)).all()
             search_window = datetime.timedelta(self._distribution_function(self._repetition_amount))
 
-            if group_id is None:
-                groups = [x.id for x in person.groups]
-            elif group_id is int:
-                groups = [group_id]
-            else:
-                groups = group_id
-            groups: list
+            group_level_differences = dict()
+            current_levels = person_levels(person_id)
+            question_ids = []
 
-            question_ids = [x.id for x in db.scalars(
-                select(questions.Question).join(questions.Question.groups).where(users.PersonGroup.id.in_(groups)))]
-            answered_question_ids = [x.question_id for x in db.scalars(
+            for group in groups:
+                group_level_differences[group.group_id] = group.target_level - current_levels[group.group_id]
+
+            for worst_group_id in sorted(group_level_differences, key=group_level_differences.get, reverse=True):
+                question_level = round(half_normal(current_levels[worst_group_id], 1))
+                if question_level <= 0:
+                    question_level = 1
+
+                question_ids = [question.id for question in db.scalars(
+                    select(questions.Question).join(questions.Question.groups).where(
+                        users.PersonGroup.id == worst_group_id).where(questions.Question.level == question_level))]
+                if len(question_ids) > 0:
+                    break
+
+            if len(question_ids) == 0:
+                # If we didn't find correct questions to ask then
+                # select all the questions from these groups
+                groups_n = [group.group_id for group in groups]
+                question_ids = [question.id for question in db.scalars(
+                    select(questions.Question).join(questions.Question.groups).where(
+                        users.PersonGroup.id.in_(groups_n)))]
+
+            answered_question_ids = [answer.question_id for answer in db.scalars(
                 select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
                     questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window))]
 
@@ -198,5 +254,6 @@ class Schedule(Thread):
                     questions.QuestionAnswer.person_id == person_id).where(
                     questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
                     questions.QuestionAnswer.ask_time)).first()
+                print(answer.question_id)
                 answer.state = questions.AnswerState.TRANSFERRED  # Mark an answer as transferred (sent)
                 db.commit()
