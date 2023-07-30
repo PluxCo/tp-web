@@ -143,15 +143,16 @@ class Schedule(Thread):
                 group_level_differences[group.group_id] = group.target_level - current_levels[group.group_id]
 
             for worst_group_id in sorted(group_level_differences, key=group_level_differences.get, reverse=True):
-                question_level = round(half_normal(current_levels[worst_group_id], 1))
+                question_level = round(
+                    half_normal(current_levels[worst_group_id], 1))  # Generating appropriate question level
                 if question_level <= 0:
-                    question_level = 1
+                    question_level = 1  # Check if the question level is positive otherwise chose the lowest
 
                 question_ids = [question.id for question in db.scalars(
                     select(questions.Question).join(questions.Question.groups).where(
                         users.PersonGroup.id == worst_group_id).where(questions.Question.level == question_level))]
                 if len(question_ids) > 0:
-                    break
+                    break  # If a group with questions to ask was found
 
             if len(question_ids) == 0:
                 # If we didn't find correct questions to ask then
@@ -165,11 +166,17 @@ class Schedule(Thread):
                 select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
                     questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window))]
 
+            #  Find intersection of questions to ask and questions which were asked earlier
+            #
             result_list = list(set(question_ids).difference(answered_question_ids))
+
             if len(result_list) > 0:
                 question = random.choice(result_list)
             else:
                 question = random.choice(question_ids)
+
+            # Add questions to the database as planned
+            #
             planned_question = questions.QuestionAnswer()
             planned_question.ask_time = datetime.datetime.now()
             planned_question.question_id = question
@@ -177,6 +184,7 @@ class Schedule(Thread):
             planned_question.state = questions.AnswerState.NOT_ANSWERED
             db.add(planned_question)
             db.commit()
+
             return question
 
     def _plan_questions(self, person_id: int):
@@ -254,6 +262,5 @@ class Schedule(Thread):
                     questions.QuestionAnswer.person_id == person_id).where(
                     questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
                     questions.QuestionAnswer.ask_time)).first()
-                print(answer.question_id)
                 answer.state = questions.AnswerState.TRANSFERRED  # Mark an answer as transferred (sent)
                 db.commit()
