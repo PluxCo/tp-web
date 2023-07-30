@@ -1,22 +1,28 @@
 import json
 import os
+import itertools
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from sqlalchemy import select
+from flask_socketio import SocketIO
+from sqlalchemy import select, func, distinct
+from sqlalchemy.orm import aliased
 
 import schedule
 import tools
 from models import db_session
+
 from models import users, questions
-from models.questions import QuestionAnswer
-from models.users import Person
+from models.questions import QuestionAnswer, Question, QuestionGroupAssociation, AnswerState
+from models.users import Person, PersonGroup
+
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
+socketio = SocketIO(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -57,12 +63,45 @@ def main_page():
     return render_template("index.html")
 
 
+# noinspection PyTypeChecker
 @app.route("/statistic/<int:person_id>")
 def statistic_page(person_id):
     with db_session.create_session() as db:
         person = db.scalars(select(Person).where(Person.id == person_id)).first()
 
-        return render_template("statistic.html", person=person, AnswerState=questions.AnswerState)
+        person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
+                                     where(PersonGroup.id.in_(pg.id for pg in person.groups)))
+
+        subject_stat = []
+
+        for name in person_subjects:
+            all_questions = db.scalar(select(func.count(distinct(Question.id))).
+                                      join(Question.groups).
+                                      where(Question.subject == name,
+                                            PersonGroup.id.in_(pg.id for pg in person.groups)))
+
+            last_answers = db.scalars(select(QuestionAnswer, func.max(QuestionAnswer.id)).
+                                      join(QuestionAnswer.question).
+                                      where(QuestionAnswer.person_id == person.id,
+                                            Question.subject == name,
+                                            QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                      group_by(QuestionAnswer.question_id)).all()
+
+            correct_count = db.scalar(select(func.count(QuestionAnswer.id)).
+                                      join(QuestionAnswer.question).
+                                      where(QuestionAnswer.id.in_(a.id for a in last_answers),
+                                            Question.answer == QuestionAnswer.person_answer))
+
+            person_answers = db.scalar(select(func.count(distinct(QuestionAnswer.question_id))).
+                                       join(QuestionAnswer.question).
+                                       where(QuestionAnswer.person_id == person.id,
+                                             Question.subject == name,
+                                             QuestionAnswer.state != AnswerState.NOT_ANSWERED))
+
+            subject_stat.append((name, correct_count, person_answers, all_questions, last_answers))
+
+        return render_template("statistic.html", person=person,
+                               AnswerState=questions.AnswerState, subjects=subject_stat)
 
 
 @app.route("/questions", methods=["POST", "GET"])
