@@ -38,7 +38,7 @@ class QuestionAnswer(SqlAlchemyBase):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     question_id = Column(ForeignKey("questions.id"))
-    question = relationship("Question")
+    question = relationship("Question", backref="answers")
     person_id = Column(ForeignKey("persons.id"))
     person_answer = Column(Integer)
     answer_time = Column(DateTime)

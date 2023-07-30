@@ -29,32 +29,63 @@
                                 P
                             </td>
                         {% endif %}
-
-                        <div class="modal fade" id="info_{{ answer.id }}" tabindex="-1"
-                             aria-labelledby="exampleModalLabel"
-                             aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Закрыть"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <h6>Question</h6>
-                                        {{ answer.question.text }}
-                                        <h6>Answer Time</h6>
-                                        {{ answer.answer_time }}
-                                        <h6>User answer</h6>
-                                        {{ answer.person_answer }}
-                                        <h6>Correct answer</h6>
-                                        {{ answer.question.answer }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     {% endfor %}
                 </tr>
             </table>
+        </div>
+        <div class="row">
+            <div class="accordion" id="groups_stat">
+                {% for name, correct, answered, all, last in subjects %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed d-block" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#subj_{{ loop.index }}" aria-expanded="false"
+                                    aria-controls="subj_{{ loop.index }}">
+                                <span>{{ name }}</span>
+                                <span class="float-end mx-5 fs-5">
+                                    <span class="text-success">{{ correct }}</span> /
+                                    <span class="text-info">{{ answered }}</span> /
+                                    <span class="text-secondary">{{ all }}</span>
+                                </span>
+                            </button>
+                        </h2>
+                        <div id="subj_{{ loop.index }}" class="accordion-collapse collapse"
+                             data-bs-parent="#groups_stat">
+                            <div class="accordion-body table-responsive">
+                                <table class="table align-middle">
+                                    <caption>Last answers</caption>
+                                    <tr>
+                                        {% for answer in last %}
+                                            <td class="text-center col-3">{{ answer.question.text }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                        {% for answer in last %}
+                                            {% if answer.state == AnswerState.ANSWERED and answer.person_answer == answer.question.answer %}
+                                                <td class="text-center table-success" data-bs-toggle="modal"
+                                                    data-bs-target="#info_{{ answer.id }}">
+                                                    C
+                                                </td>
+                                            {% elif answer.state == AnswerState.ANSWERED and answer.person_answer != answer.question.answer %}
+                                                <td class="text-center table-warning" data-bs-toggle="modal"
+                                                    data-bs-target="#info_{{ answer.id }}">
+                                                    N
+                                                </td>
+                                            {% elif answer.state == AnswerState.TRANSFERRED %}
+                                                <td class="text-center table-info" data-bs-toggle="modal"
+                                                    data-bs-target="#info_{{ answer.id }}">
+                                                    I
+                                                </td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 {% endblock %}
