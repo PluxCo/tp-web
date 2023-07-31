@@ -12,7 +12,6 @@ import schedule
 import tools
 from models import db_session
 
-from models import users, questions
 from models.questions import QuestionAnswer, Question, QuestionGroupAssociation, AnswerState
 from models.users import Person, PersonGroup
 
@@ -75,33 +74,45 @@ def statistic_page(person_id):
         subject_stat = []
 
         for name in person_subjects:
-            all_questions = db.scalar(select(func.count(distinct(Question.id))).
-                                      join(Question.groups).
-                                      where(Question.subject == name,
-                                            PersonGroup.id.in_(pg.id for pg in person.groups)))
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(Question.subject == name,
+                                             PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
 
-            last_answers = db.scalars(select(QuestionAnswer, func.max(QuestionAnswer.id)).
-                                      join(QuestionAnswer.question).
-                                      where(QuestionAnswer.person_id == person.id,
-                                            Question.subject == name,
-                                            QuestionAnswer.state != AnswerState.NOT_ANSWERED).
-                                      group_by(QuestionAnswer.question_id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
+            person_answers = []
+            
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
 
-            correct_count = db.scalar(select(func.count(QuestionAnswer.id)).
-                                      join(QuestionAnswer.question).
-                                      where(QuestionAnswer.id.in_(a.id for a in last_answers),
-                                            Question.answer == QuestionAnswer.person_answer))
+                question_correct_count = len([1 for a in answers if a.person_answer == current_question.answer])
+                question_incorrect_count = len(answers) - question_correct_count
 
-            person_answers = db.scalar(select(func.count(distinct(QuestionAnswer.question_id))).
-                                       join(QuestionAnswer.question).
-                                       where(QuestionAnswer.person_id == person.id,
-                                             Question.subject == name,
-                                             QuestionAnswer.state != AnswerState.NOT_ANSWERED))
+                answer_state = "NOT_ANSWERED"
+                if answers:
+                    answered_count += 1
+                    if answers[-1].state == AnswerState.TRANSFERRED:
+                        answer_state = "IGNORED"
+                    elif answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+                        answer_state = "CORRECT"
+                    else:
+                        answer_state = "INCORRECT"
 
-            subject_stat.append((name, correct_count, person_answers, all_questions, last_answers))
+                person_answers.append((current_question, answer_state,
+                                       question_correct_count, question_incorrect_count))
+
+            subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
 
         return render_template("statistic.html", person=person,
-                               AnswerState=questions.AnswerState, subjects=subject_stat)
+                               AnswerState=AnswerState, subjects=subject_stat)
 
 
 @app.route("/questions", methods=["POST", "GET"])
@@ -110,19 +121,19 @@ def questions_page():
     db = db_session.create_session()
     create_question_form = CreateQuestionForm()
 
-    groups = [(str(item.id), item.name) for item in db.scalars(select(users.PersonGroup))]
+    groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
     create_question_form.groups.choices = groups
 
     if create_question_form.validate_on_submit():
         selected = [int(item) for item in create_question_form.groups.data]
-        selected_groups = db.scalars(select(users.PersonGroup).where(users.PersonGroup.id.in_(selected)))
+        selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected)))
         options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
-        new_question = questions.Question(text=create_question_form.text.data,
-                                          subject=create_question_form.subject.data,
-                                          options=options,
-                                          answer=create_question_form.answer.data,
-                                          level=create_question_form.level.data,
-                                          article_url=create_question_form.article.data)
+        new_question = Question(text=create_question_form.text.data,
+                                subject=create_question_form.subject.data,
+                                options=options,
+                                answer=create_question_form.answer.data,
+                                level=create_question_form.level.data,
+                                article_url=create_question_form.article.data)
 
         new_question.groups.extend(selected_groups)
         db.add(new_question)
@@ -133,7 +144,7 @@ def questions_page():
                                                   article=create_question_form.article.data)
         create_question_form.groups.choices = groups
 
-    questions_list = db.scalars(select(questions.Question))
+    questions_list = db.scalars(select(Question))
 
     return render_template("question.html", questions=questions_list, create_question_form=create_question_form)
 
@@ -148,9 +159,9 @@ def settings_page():
                                                   week_days=[d.value for d in tools.Settings()["week_days"]])
 
     if create_group_form.create_group.data and create_group_form.validate():
-        new_user = users.PersonGroup()
-        new_user.name = create_group_form.name.data
-        db.add(new_user)
+        new_group = PersonGroup()
+        new_group.name = create_group_form.name.data
+        db.add(new_group)
         db.commit()
 
         return redirect("/settings")
@@ -172,7 +183,7 @@ def settings_page():
         settings.update_settings()
         return redirect("/settings")
 
-    groups = db.scalars(select(users.PersonGroup))
+    groups = db.scalars(select(PersonGroup))
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
                            tg_settings_form=tg_settings_form)
