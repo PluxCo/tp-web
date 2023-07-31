@@ -35,7 +35,7 @@
         </div>
         <div class="row">
             <div class="accordion" id="groups_stat">
-                {% for name, correct, answered, all, last in subjects %}
+                {% for name, correct, answered, all, answers in subjects %}
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed d-block" type="button"
@@ -56,26 +56,31 @@
                                 <table class="table align-middle">
                                     <caption>Last answers</caption>
                                     <tr>
-                                        {% for answer in last %}
-                                            <td class="text-center col-3">{{ answer.question.text }}</td>
+                                        {% for question, state, correct, incorrect in answers %}
+                                            <td class="text-center col-1">{{ question.text }}</td>
                                         {% endfor %}
                                     </tr>
                                     <tr>
-                                        {% for answer in last %}
-                                            {% if answer.state == AnswerState.ANSWERED and answer.person_answer == answer.question.answer %}
-                                                <td class="text-center table-success" data-bs-toggle="modal"
-                                                    data-bs-target="#info_{{ answer.id }}">
-                                                    C
+                                        {% for question, state, q_correct, q_incorrect in answers %}
+                                            {% if state == "CORRECT" %}
+                                                <td class="text-center table-success">
+                                                    <span class="text-success">{{ q_correct }}</span> /
+                                                    <span class="text-warning">{{ q_incorrect }}</span>
                                                 </td>
-                                            {% elif answer.state == AnswerState.ANSWERED and answer.person_answer != answer.question.answer %}
-                                                <td class="text-center table-warning" data-bs-toggle="modal"
-                                                    data-bs-target="#info_{{ answer.id }}">
-                                                    N
+                                            {% elif state == "INCORRECT" %}
+                                                <td class="text-center table-warning">
+                                                    <span class="text-success">{{ q_correct }}</span> /
+                                                    <span class="text-warning">{{ q_incorrect }}</span>
                                                 </td>
-                                            {% elif answer.state == AnswerState.TRANSFERRED %}
-                                                <td class="text-center table-info" data-bs-toggle="modal"
-                                                    data-bs-target="#info_{{ answer.id }}">
-                                                    I
+                                            {% elif state == "IGNORED" %}
+                                                <td class="text-center table-info">
+                                                    <span class="text-success">{{ q_correct }}</span> /
+                                                    <span class="text-warning">{{ q_incorrect }}</span>
+                                                </td>
+                                            {% elif state == "NOT_ANSWERED" %}
+                                                <td class="text-center table-secondary">
+                                                    <span class="text-success">{{ q_correct }}</span> /
+                                                    <span class="text-warning">{{ q_incorrect }}</span>
                                                 </td>
                                             {% endif %}
                                         {% endfor %}
