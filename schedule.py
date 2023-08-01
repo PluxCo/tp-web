@@ -1,81 +1,17 @@
 import datetime
 import enum
-import json
 import math
 import random
-import string
 import time
 from collections import defaultdict
-from threading import Thread, Timer
+from threading import Thread
 
 import numpy as np
-from faker import Faker
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 
 from models import questions, users
-from models.db_session import Session, create_session
+from models.db_session import create_session
 from tools import Settings
-
-
-def fake_db(session: Session, scale=None):
-    if scale is None:
-        scale = [4, 8, 16, 32]
-    fake = Faker('ru_RU')
-    db = session
-    group_list = []
-    question_list = []
-    person_list = []
-
-    for i in range(0, scale[0]):
-        group = users.PersonGroup()
-        group.name = fake.word()
-        group_list.append(group)
-        db.add(group)
-    db.commit()
-
-    for i in range(0, scale[1]):
-        person = users.Person()
-        person.full_name = fake.name()
-        person.tg_id = fake.random_int(min=1_000_000, max=1_000_000_000)
-        person.level = fake.random_int(min=1, max=5)
-        person.groups.append(fake.random_element(elements=group_list))
-        person_list.append(person)
-        db.add(person)
-    db.commit()
-
-    for i in range(0, scale[2]):
-        question = questions.Question()
-        question.text = fake.sentence()
-
-        options = [fake.sentence(), fake.sentence(), fake.sentence(), fake.sentence()]
-        question.options = json.dumps(options, ensure_ascii=False)
-        question.answer = np.random.randint(1, 5)
-
-        question.level = fake.random_int(min=1, max=5)
-        question.article_url = fake.url()
-        question.groups.append(fake.random_element(elements=group_list))
-        question.subject = fake.word()
-
-        question_list.append(question)
-        db.add(question)
-    db.commit()
-
-    for i in range(0, scale[3]):
-        answer = questions.QuestionAnswer()
-        answer.question = fake.random_element(elements=question_list)
-        answer.question_id = answer.question.id
-
-        answer.person = fake.random_element(elements=person_list)
-        answer.person_id = answer.person.id
-
-        answer.answer_time = fake.date_time_this_year()
-        answer.ask_time = answer.answer_time
-
-        answer.person_answer = np.random.randint(1, 5)
-        answer.state = questions.AnswerState.ANSWERED
-
-        db.add(answer)
-    db.commit()
 
 
 class WeekDays(enum.Enum):
@@ -86,6 +22,44 @@ class WeekDays(enum.Enum):
     Friday = 4
     Saturday = 5
     Sunday = 6
+
+
+def half_normal(location, standard_deviation):
+    n = np.random.normal(location, standard_deviation)
+    if n > location:
+        n2 = np.random.normal(location, standard_deviation)
+        return n2
+    return n
+
+
+def person_levels(person_id) -> dict:
+    with create_session() as db:
+        # Returns the average level of questions which were answered incorrectly
+
+        person_groups = [group.id for group in db.get(users.Person, person_id).groups]
+        group_levels = dict()
+
+        for group in person_groups:
+            correct_answers_sum = \
+                db.query(func.sum(questions.Question.level)).join(questions.QuestionAnswer.question).filter(
+                    questions.QuestionAnswer.question.has(and_(
+                        questions.Question.answer == questions.QuestionAnswer.person_answer,
+                        questions.Question.groups.any(questions.QuestionGroupAssociation.group_id == group),
+                        questions.QuestionAnswer.person_id == person_id
+                    ))).first()[0]
+
+            correct_answers = \
+                db.query(func.count(questions.Question.level)).join(questions.QuestionAnswer.question).filter(
+                    questions.QuestionAnswer.question.has(and_(
+                        questions.Question.answer == questions.QuestionAnswer.person_answer,
+                        questions.Question.groups.any(questions.QuestionGroupAssociation.group_id == group),
+                        questions.QuestionAnswer.person_id == person_id
+                    ))).first()[0]
+
+            group_levels[group] = round(correct_answers_sum / correct_answers if correct_answers != 0 else 1,
+                                        2)
+
+        return group_levels
 
 
 class Schedule(Thread):
@@ -144,49 +118,65 @@ class Schedule(Thread):
         previous_call = None
         while True:
             persons = db.scalars(select(users.Person)).all()
-            question_for_person = {}
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
-                for person in persons:
-                    questions_to_ask_now = self._plan_questions(person.id, now)
-                    if len(questions_to_ask_now) != 0:
-                        question_for_person[person.id] = np.random.choice(questions_to_ask_now)
-                    else:
-                        question_for_person[person.id] = self._random_question(person.id)
-                previous_call = self._periodic_call(now, previous_call, question_for_person)
-            else:
-                for person in persons:
-                    question_for_person[person.id] = self._random_question(person.id)
-                previous_call = self._periodic_call(now, previous_call, question_for_person)
+                previous_call = self._periodic_call(now, previous_call, persons)
             time.sleep(1)
 
-    def _random_question(self, person_id: int, group_id: list or int = None) -> int:
-        """Gives random question id within the same group, which hasn't been asked yet if such question exists
+    def _random_question(self, person_id: int) -> int:
+        """
+            Gives random question id within the same group, which hasn't been asked yet if such question exists
+            Also adds this question to the database as a planned.
+
         """
 
         with create_session() as db:
-            person = db.scalar(select(users.Person).where(users.Person.id == person_id))
+            groups = db.scalars(
+                select(users.PersonGroupAssociation).where(users.PersonGroupAssociation.person_id == person_id)).all()
             search_window = datetime.timedelta(self._distribution_function(self._repetition_amount))
 
-            if group_id is None:
-                groups = [x.id for x in person.groups]
-            elif group_id is int:
-                groups = [group_id]
-            else:
-                groups = group_id
-            groups: list
+            group_level_differences = dict()
+            current_levels = person_levels(person_id)
+            question_ids = []
 
-            question_ids = [x.id for x in db.scalars(
-                select(questions.Question).join(questions.Question.groups).where(users.PersonGroup.id.in_(groups)))]
-            answered_question_ids = [x.question_id for x in db.scalars(
+            for group in groups:
+                group_level_differences[group.group_id] = group.target_level - current_levels[group.group_id]
+
+            for worst_group_id in sorted(group_level_differences, key=group_level_differences.get, reverse=True):
+                question_level = round(
+                    half_normal(current_levels[worst_group_id], 1))  # Generating appropriate question level
+                if question_level <= 0:
+                    question_level = 1  # Check if the question level is positive otherwise chose the lowest
+
+                question_ids = [question.id for question in db.scalars(
+                    select(questions.Question).join(questions.Question.groups).where(
+                        users.PersonGroup.id == worst_group_id).where(questions.Question.level == question_level))]
+                if len(question_ids) > 0:
+                    break  # If a group with questions to ask was found
+
+            if len(question_ids) == 0:
+                # If we didn't find correct questions to ask then
+                # select all the questions from these groups
+                groups_n = [group.group_id for group in groups]
+                question_ids = [question.id for question in db.scalars(
+                    select(questions.Question).join(questions.Question.groups).where(
+                        users.PersonGroup.id.in_(groups_n)))]
+
+            answered_question_ids = [answer.question_id for answer in db.scalars(
                 select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
                     questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window))]
 
+            #  Find intersection of questions to ask and questions which were asked earlier
+            #
             result_list = list(set(question_ids).difference(answered_question_ids))
+
             if len(result_list) > 0:
                 question = random.choice(result_list)
             else:
                 question = random.choice(question_ids)
+
+            # Add questions to the database as planned
+            #
             planned_question = questions.QuestionAnswer()
             planned_question.ask_time = datetime.datetime.now()
             planned_question.question_id = question
@@ -194,10 +184,10 @@ class Schedule(Thread):
             planned_question.state = questions.AnswerState.NOT_ANSWERED
             db.add(planned_question)
             db.commit()
+
             return question
 
-    def _plan_questions(self, person_id: int, now=datetime.datetime.now()):
-        tic = time.perf_counter()
+    def _plan_questions(self, person_id: int):
         db = create_session()
         answers_map = defaultdict(list)
         questions_to_ask = []
@@ -215,11 +205,6 @@ class Schedule(Thread):
                 questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
                 questions.QuestionAnswer.ask_time.desc())).all()
 
-        transferred_questions = db.scalars(
-            select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
-                questions.QuestionAnswer.state == questions.AnswerState.TRANSFERRED).order_by(
-                questions.QuestionAnswer.ask_time.desc())).all()
-
         for answer in planned_questions:  # Add questions which were planned to ask before to the list
             questions_to_ask.append(answer.question_id)
             if answer.ask_time <= datetime.datetime.now():
@@ -228,17 +213,6 @@ class Schedule(Thread):
         for answer in answered_questions:  # Add questions which were not planned yet to the map of questions for repeat
             if answer.question_id not in questions_to_ask:
                 answers_map[answer.question_id].append(answer)
-
-        for answer in transferred_questions:  # Add questions which were transferred to the database as planed
-            if answer.question_id not in questions_to_ask:
-                answer.state = questions.AnswerState.ANSWERED
-
-                planned_answer = questions.QuestionAnswer()
-                planned_answer.ask_time = now + self._every
-                planned_answer.state = questions.AnswerState.NOT_ANSWERED
-                planned_answer.question_id = answer.question_id
-                planned_answer.person_id = person_id
-                db.add(planned_answer)
 
         for key in answers_map:  # Add questions which require repetition to the database as planed
             length = len(answers_map[key])
@@ -254,23 +228,26 @@ class Schedule(Thread):
         db.commit()
         return questions_to_ask_now
 
-    def _periodic_call(self, now, previous_call, args):
+    def _periodic_call(self, now, previous_call, persons):
+        question_for_person = {}
+
         if self._from_time is None or self._from_time <= now.time() <= self._to_time:
-            if self._order == 1:
-                if previous_call is None or (now >= previous_call + self._every):
+            if previous_call is None or (now >= previous_call + self._every):
+                if self._order == 1:
                     previous_call = now
-                    if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                        self._send_to_people(args, now)
-                        previous_call = now
-            if self._order == 0:
                 if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
-                    if previous_call is None or (now >= previous_call + self._every):
-                        self._send_to_people(args, now)
-                        previous_call = now
+                    for person in persons:
+                        questions_to_ask_now = self._plan_questions(person.id)
+                        if len(questions_to_ask_now) != 0:
+                            question_for_person[person.id] = np.random.choice(questions_to_ask_now)
+                        else:
+                            question_for_person[person.id] = self._random_question(person.id)
+                    self._send_to_people(question_for_person)
+                    previous_call = now
 
         return previous_call
 
-    def _send_to_people(self, question_to_person, now):
+    def _send_to_people(self, question_to_person):
         with create_session() as db:
             for person_id in question_to_person:
                 question_id = int(question_to_person[person_id])
@@ -278,4 +255,12 @@ class Schedule(Thread):
 
                 question = db.get(questions.Question, int(question_id))
                 person = db.get(users.Person, person_id)
-                self._callback(person, question)
+                self._callback(person, question)  # Send a question to a person
+
+                answer = db.scalars(select(questions.QuestionAnswer).where(
+                    questions.QuestionAnswer.question_id == question.id).where(
+                    questions.QuestionAnswer.person_id == person_id).where(
+                    questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
+                    questions.QuestionAnswer.ask_time)).first()
+                answer.state = questions.AnswerState.TRANSFERRED  # Mark an answer as transferred (sent)
+                db.commit()
