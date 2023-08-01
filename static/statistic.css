@@ -1,0 +1,9 @@
+.row {
+    padding-left: 4%;
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+}
+
+.chart-container {
+    height: 20rem;
+}
