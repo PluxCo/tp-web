@@ -170,7 +170,7 @@ def questions_page():
 
                     new_question = Question(text=record["question"],
                                             subject=import_question_form.subject.data,
-                                            options=json.dumps(record["options"]),
+                                            options=json.dumps(record["options"], ensure_ascii=False),
                                             answer=answer,
                                             level=record["difficulty"],
                                             article_url=import_question_form.article.data)
@@ -179,7 +179,8 @@ def questions_page():
                 else:
                     db.commit()
 
-                    import_question_form = ImportQuestionForm(formdata=None)
+                    import_question_form = ImportQuestionForm(formdata=None,
+                                                              groups=import_question_form.groups.data)
                     import_question_form.groups.choices = groups
             except (json.decoder.JSONDecodeError, KeyError) as e:
                 import_question_form.import_data.errors.append(
