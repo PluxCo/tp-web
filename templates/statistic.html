@@ -16,12 +16,12 @@
                         {% elif answer.state == AnswerState.ANSWERED and answer.person_answer != answer.question.answer %}
                             <td class="text-center table-warning" data-bs-toggle="modal"
                                 data-bs-target="#info_{{ answer.id }}">
-                                N
+                                I
                             </td>
                         {% elif answer.state == AnswerState.TRANSFERRED %}
                             <td class="text-center table-info" data-bs-toggle="modal"
                                 data-bs-target="#info_{{ answer.id }}">
-                                I
+                                S
                             </td>
                         {% elif answer.state == AnswerState.NOT_ANSWERED %}
                             <td class="text-center table-secondary" data-bs-toggle="modal"
@@ -65,22 +65,22 @@
                                             {% if state == "CORRECT" %}
                                                 <td class="text-center table-success">
                                                     <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-warning">{{ q_incorrect }}</span>
+                                                    <span class="text-danger">{{ q_incorrect }}</span>
                                                 </td>
                                             {% elif state == "INCORRECT" %}
                                                 <td class="text-center table-warning">
                                                     <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-warning">{{ q_incorrect }}</span>
+                                                    <span class="text-danger">{{ q_incorrect }}</span>
                                                 </td>
                                             {% elif state == "IGNORED" %}
                                                 <td class="text-center table-info">
                                                     <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-warning">{{ q_incorrect }}</span>
+                                                    <span class="text-danger">{{ q_incorrect }}</span>
                                                 </td>
                                             {% elif state == "NOT_ANSWERED" %}
                                                 <td class="text-center table-secondary">
                                                     <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-warning">{{ q_incorrect }}</span>
+                                                    <span class="text-danger">{{ q_incorrect }}</span>
                                                 </td>
                                             {% endif %}
                                         {% endfor %}
