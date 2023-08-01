@@ -1,12 +1,11 @@
 import datetime
 
-from flask_wtf import FlaskForm
-from wtforms import Field
 from wtforms.fields import StringField, SelectMultipleField, IntegerField, TimeField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
 from wtforms.widgets import TextInput
 
-import schedule
+from ._ext import BasePrefixedForm
+
 from schedule import WeekDays
 
 
@@ -48,13 +47,13 @@ class TimeDeltaField(StringField):
         return res
 
 
-class TelegramSettingsForm(FlaskForm):
+class TelegramSettingsForm(BasePrefixedForm):
     tg_pin = StringField("Telegram auth pin")
 
     save_tg = SubmitField("Save")
 
 
-class ScheduleSettingsForm(FlaskForm):
+class ScheduleSettingsForm(BasePrefixedForm):
     time_period = TimeDeltaField("Period", validators=[DataRequired()])
     week_days = SelectMultipleField("Week days", choices=[(WeekDays.Monday.value, "Monday"),
                                                           (WeekDays.Tuesday.value, "Tuesday"),
