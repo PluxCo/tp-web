@@ -1,7 +1,7 @@
 import enum
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, DateTime, Enum, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from .db_session import SqlAlchemyBase
 from .users import PersonGroup, Person
@@ -38,10 +38,11 @@ class QuestionAnswer(SqlAlchemyBase):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     question_id = Column(ForeignKey("questions.id"))
-    question = relationship("Question")
+    question = relationship("Question", backref="answers")
     person_id = Column(ForeignKey("persons.id"))
-    person = relationship("Person")
     person_answer = Column(Integer)
     answer_time = Column(DateTime)
     ask_time = Column(DateTime)
     state = Column(Enum(AnswerState))
+
+    person = relationship("Person", backref=backref("answers", order_by=ask_time))
