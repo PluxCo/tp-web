@@ -1,7 +1,9 @@
+import datetime
 import json
 import os
 import itertools
 
+import sqlalchemy
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO
@@ -72,6 +74,7 @@ def statistic_page(person_id):
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
 
         subject_stat = []
+        timeline = []
 
         for name in person_subjects:
             all_questions = db.scalars(select(Question).
@@ -84,7 +87,7 @@ def statistic_page(person_id):
             answered_count = 0
             questions_count = len(all_questions)
             person_answers = []
-            
+
             for current_question in all_questions:
                 answers = db.scalars(select(QuestionAnswer).
                                      where(QuestionAnswer.person_id == person.id,
@@ -111,8 +114,28 @@ def statistic_page(person_id):
 
             subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
 
+        for check_time in [datetime.datetime.now() + datetime.timedelta(x) for x in range(-200, 1)]:
+            correct_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.answer_time <= check_time,
+                                                                           QuestionAnswer.state == AnswerState.ANSWERED,
+                                                                           Question.answer == QuestionAnswer.person_answer))
+            incorrect_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.answer_time <= check_time,
+                                                                           QuestionAnswer.state == AnswerState.ANSWERED,
+                                                                           Question.answer != QuestionAnswer.person_answer))
+            ignored_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.ask_time <= check_time,
+                                                                           QuestionAnswer.state != AnswerState.ANSWERED,
+                                                                           QuestionAnswer.person_answer == None))
+
+            timeline.append((check_time.strftime("%d %b"), correct_questions_amount, incorrect_questions_amount,
+                             ignored_questions_amount))
+
         return render_template("statistic.html", person=person,
-                               AnswerState=AnswerState, subjects=subject_stat)
+                               AnswerState=AnswerState, subjects=subject_stat, timeline=timeline)
 
 
 @app.route("/questions", methods=["POST", "GET"])
