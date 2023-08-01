@@ -118,42 +118,71 @@ def statistic_page(person_id):
 @app.route("/questions", methods=["POST", "GET"])
 @login_required
 def questions_page():
-    db = db_session.create_session()
-    create_question_form = CreateQuestionForm()
-    import_question_form = ImportQuestionForm()
+    with db_session.create_session() as db:
+        create_question_form = CreateQuestionForm()
+        import_question_form = ImportQuestionForm()
 
-    groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
-    create_question_form.groups.choices = groups
-    import_question_form.groups.choices = groups
-
-    if create_question_form.create.data and create_question_form.validate():
-        selected = [int(item) for item in create_question_form.groups.data]
-        selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected)))
-        options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
-        new_question = Question(text=create_question_form.text.data,
-                                subject=create_question_form.subject.data,
-                                options=options,
-                                answer=create_question_form.answer.data,
-                                level=create_question_form.level.data,
-                                article_url=create_question_form.article.data)
-
-        new_question.groups.extend(selected_groups)
-        db.add(new_question)
-        db.commit()
-
-        create_question_form = CreateQuestionForm(formdata=None,
-                                                  subject=create_question_form.subject.data,
-                                                  article=create_question_form.article.data)
+        groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
         create_question_form.groups.choices = groups
+        import_question_form.groups.choices = groups
 
-    if import_question_form.import_btn.data and import_question_form.validate():
-        pass
+        questions_list = db.scalars(select(Question))
 
-    questions_list = db.scalars(select(Question))
+        if create_question_form.create.data and create_question_form.validate():
+            selected = [int(item) for item in create_question_form.groups.data]
+            selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected)))
+            options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
+            new_question = Question(text=create_question_form.text.data,
+                                    subject=create_question_form.subject.data,
+                                    options=options,
+                                    answer=create_question_form.answer.data,
+                                    level=create_question_form.level.data,
+                                    article_url=create_question_form.article.data)
 
-    return render_template("question.html", questions=questions_list,
-                           create_question_form=create_question_form,
-                           import_question_form=import_question_form)
+            new_question.groups.extend(selected_groups)
+            db.add(new_question)
+            db.commit()
+
+            create_question_form = CreateQuestionForm(formdata=None,
+                                                      subject=create_question_form.subject.data,
+                                                      article=create_question_form.article.data)
+            create_question_form.groups.choices = groups
+
+        if import_question_form.import_btn.data and import_question_form.validate():
+            selected = [int(item) for item in import_question_form.groups.data]
+            selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected))).all()
+
+            try:
+                for record in json.loads(import_question_form.import_data.data):
+                    if record["answer"] not in record["options"]:
+                        import_question_form.import_data.errors.append(
+                            "Answer '{}' wasn't found in options".format(record["answer"]))
+                        db.rollback()
+                        break
+
+                    answer = record["options"].index(record["answer"]) + 1
+
+                    new_question = Question(text=record["question"],
+                                            subject=import_question_form.subject.data,
+                                            options=json.dumps(record["options"]),
+                                            answer=answer,
+                                            level=record["difficulty"],
+                                            article_url=import_question_form.article.data)
+                    new_question.groups.extend(selected_groups)
+                    db.add(new_question)
+                else:
+                    db.commit()
+
+                    import_question_form = ImportQuestionForm(formdata=None)
+                    import_question_form.groups.choices = groups
+            except (json.decoder.JSONDecodeError, KeyError) as e:
+                import_question_form.import_data.errors.append(
+                    "Decode error: {}".format(e))
+                db.rollback()
+
+        return render_template("question.html", questions=questions_list,
+                               create_question_form=create_question_form,
+                               import_question_form=import_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
