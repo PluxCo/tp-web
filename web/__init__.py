@@ -122,6 +122,8 @@ def questions_page():
         create_question_form = CreateQuestionForm()
         import_question_form = ImportQuestionForm()
 
+        active_tab = "CREATE"
+
         groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
         create_question_form.groups.choices = groups
         import_question_form.groups.choices = groups
@@ -129,6 +131,8 @@ def questions_page():
         questions_list = db.scalars(select(Question))
 
         if create_question_form.create.data and create_question_form.validate():
+            active_tab = "CREATE"
+
             selected = [int(item) for item in create_question_form.groups.data]
             selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected)))
             options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
@@ -149,6 +153,8 @@ def questions_page():
             create_question_form.groups.choices = groups
 
         if import_question_form.import_btn.data and import_question_form.validate():
+            active_tab = "IMPORT"
+
             selected = [int(item) for item in import_question_form.groups.data]
             selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected))).all()
 
@@ -180,7 +186,9 @@ def questions_page():
                     "Decode error: {}".format(e))
                 db.rollback()
 
-        return render_template("question.html", questions=questions_list,
+        return render_template("question.html",
+                               active_tab=active_tab,
+                               questions=questions_list,
                                create_question_form=create_question_form,
                                import_question_form=import_question_form)
 
