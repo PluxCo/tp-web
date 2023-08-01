@@ -16,7 +16,7 @@ from models.questions import QuestionAnswer, Question, QuestionGroupAssociation,
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
-from web.forms.questions import CreateQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -84,7 +84,7 @@ def statistic_page(person_id):
             answered_count = 0
             questions_count = len(all_questions)
             person_answers = []
-            
+
             for current_question in all_questions:
                 answers = db.scalars(select(QuestionAnswer).
                                      where(QuestionAnswer.person_id == person.id,
@@ -120,11 +120,13 @@ def statistic_page(person_id):
 def questions_page():
     db = db_session.create_session()
     create_question_form = CreateQuestionForm()
+    import_question_form = ImportQuestionForm()
 
     groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
     create_question_form.groups.choices = groups
+    import_question_form.groups.choices = groups
 
-    if create_question_form.validate_on_submit():
+    if create_question_form.create.data and create_question_form.validate():
         selected = [int(item) for item in create_question_form.groups.data]
         selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected)))
         options = json.dumps(create_question_form.options.data.splitlines(), ensure_ascii=False)
@@ -144,9 +146,14 @@ def questions_page():
                                                   article=create_question_form.article.data)
         create_question_form.groups.choices = groups
 
+    if import_question_form.import_btn.data and import_question_form.validate():
+        pass
+
     questions_list = db.scalars(select(Question))
 
-    return render_template("question.html", questions=questions_list, create_question_form=create_question_form)
+    return render_template("question.html", questions=questions_list,
+                           create_question_form=create_question_form,
+                           import_question_form=import_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
