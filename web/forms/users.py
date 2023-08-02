@@ -24,6 +24,11 @@ class CreateGroupForm(BasePrefixedForm):
             raise ValidationError("This group already exists")
 
 
+class PausePersonForm(BasePrefixedForm):
+    pause = SubmitField("Pause")
+    unpause = SubmitField("Unpause")
+
+
 class UserCork:
     def is_active(self):
         return True
