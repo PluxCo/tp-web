@@ -25,4 +25,5 @@ class Person(SqlAlchemyBase):
     id = Column(Integer, primary_key=True, autoincrement=True)
     full_name = Column(String)
     groups = relationship("PersonGroup", secondary="person_to_group")
+    is_paused = Column(Boolean, default=False)
     tg_id = Column(Integer, unique=True)

@@ -191,45 +191,48 @@ class Schedule(Thread):
             return question
 
     def _plan_questions(self, person_id: int):
-        db = create_session()
-        answers_map = defaultdict(list)
-        questions_to_ask = []
-        questions_to_ask_now = []
+        with create_session() as db:
+            answers_map = defaultdict(list)
+            questions_to_ask = []
+            questions_to_ask_now = []
 
-        answered_questions = db.scalars(
-            select(questions.QuestionAnswer).join(questions.QuestionAnswer.question).where(and_(
-                questions.QuestionAnswer.person_id == person_id,
-                questions.QuestionAnswer.state == questions.AnswerState.ANSWERED,
-                questions.Question.answer == questions.QuestionAnswer.person_answer)).order_by(
-                questions.QuestionAnswer.ask_time.desc())).all()
+            if db.get(users.Person, person_id).is_paused:
+                return questions_to_ask_now
 
-        planned_questions = db.scalars(
-            select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
-                questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
-                questions.QuestionAnswer.ask_time.desc())).all()
+            answered_questions = db.scalars(
+                select(questions.QuestionAnswer).join(questions.QuestionAnswer.question).where(and_(
+                    questions.QuestionAnswer.person_id == person_id,
+                    questions.QuestionAnswer.state == questions.AnswerState.ANSWERED,
+                    questions.Question.answer == questions.QuestionAnswer.person_answer)).order_by(
+                    questions.QuestionAnswer.ask_time.desc())).all()
 
-        for answer in planned_questions:  # Add questions which were planned to ask before to the list
-            questions_to_ask.append(answer.question_id)
-            if answer.ask_time <= datetime.datetime.now():
-                questions_to_ask_now.append(answer.question_id)
+            planned_questions = db.scalars(
+                select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
+                    questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED).order_by(
+                    questions.QuestionAnswer.ask_time.desc())).all()
 
-        for answer in answered_questions:  # Add questions which were not planned yet to the map of questions for repeat
-            if answer.question_id not in questions_to_ask:
-                answers_map[answer.question_id].append(answer)
+            for answer in planned_questions:  # Add questions which were planned to ask before to the list
+                questions_to_ask.append(answer.question_id)
+                if answer.ask_time <= datetime.datetime.now():
+                    questions_to_ask_now.append(answer.question_id)
 
-        for key in answers_map:  # Add questions which require repetition to the database as planed
-            length = len(answers_map[key])
-            if length < self._repetition_amount:
-                delta = datetime.timedelta(self._distribution_function(length))
-                planned_answer = questions.QuestionAnswer()
-                planned_answer.ask_time = delta + answers_map[key][0].ask_time
-                planned_answer.state = questions.AnswerState.NOT_ANSWERED
-                planned_answer.question_id = key
-                planned_answer.person_id = person_id
-                db.add(planned_answer)
+            for answer in answered_questions:  # Add questions which were not planned yet to the map of questions for repeat
+                if answer.question_id not in questions_to_ask:
+                    answers_map[answer.question_id].append(answer)
 
-        db.commit()
-        return questions_to_ask_now
+            for key in answers_map:  # Add questions which require repetition to the database as planed
+                length = len(answers_map[key])
+                if length < self._repetition_amount:
+                    delta = datetime.timedelta(self._distribution_function(length))
+                    planned_answer = questions.QuestionAnswer()
+                    planned_answer.ask_time = delta + answers_map[key][0].ask_time
+                    planned_answer.state = questions.AnswerState.NOT_ANSWERED
+                    planned_answer.question_id = key
+                    planned_answer.person_id = person_id
+                    db.add(planned_answer)
+
+            db.commit()
+            return questions_to_ask_now
 
     def _periodic_call(self, now, previous_call, persons):
         question_for_person = {}
@@ -261,6 +264,9 @@ class Schedule(Thread):
 
                 question = db.get(questions.Question, int(question_id))
                 person = db.get(users.Person, person_id)
+
+                if person.is_paused:
+                    return
 
                 answer = db.scalars(select(questions.QuestionAnswer).where(
                     questions.QuestionAnswer.question_id == question.id).where(
