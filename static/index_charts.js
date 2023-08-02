@@ -68,7 +68,7 @@ const bubble_chart = new Chart(
                     pan: {
                         enabled: true,
                         mode: 'xy',
-                        modifierKey: 'cmd',
+                        modifierKey: 'ctrl',
                     },
                     zoom: {
                         mode: 'xy',
