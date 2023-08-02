@@ -1,0 +1,16 @@
+.chart-container {
+    height: 20rem;
+    padding-left: 3rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.row {
+    padding-top: 2rem;
+}
+
+#PeopleList {
+    padding-left: 3rem;
+    padding-top: 1rem;
+    padding-bottom: 3rem;
+}
