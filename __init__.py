@@ -13,11 +13,9 @@ from models import db_session
 from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
-from web.forms.users import LoginForm, UserCork, CreateGroupForm
+from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
 from web.forms.questions import CreateQuestionForm, ImportQuestionForm
-
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
-from web.forms.users import LoginForm, UserCork, CreateGroupForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -85,7 +83,7 @@ def main_page():
                     answered_count += 1
                     if answers[-1].question.answer == answers[-1].person_answer:
                         correct_count += 1
-            data.append((person.id, person.full_name, correct_count, answered_count, questions_count))
+            data.append((person, correct_count, answered_count, questions_count))
 
         all_correct_answers = db.scalars(
             select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
@@ -104,16 +102,24 @@ def main_page():
 
 
 # noinspection PyTypeChecker
-@app.route("/statistic/<int:person_id>")
+@app.route("/statistic/<int:person_id>", methods=["POST", "GET"])
 @login_required
 def statistic_page(person_id):
     with db_session.create_session() as db:
-        person = db.scalars(select(Person).where(Person.id == person_id)).first()
+        pause_form = PausePersonForm()
+        person = db.get(Person, person_id)
 
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
         subject_stat = []
         timeline = []
+
+        if pause_form.pause.data and pause_form.validate():
+            person.is_paused = True
+            db.commit()
+        if pause_form.unpause.data and pause_form.validate():
+            person.is_paused = False
+            db.commit()
 
         for name in person_subjects:
             all_questions = db.scalars(select(Question).
@@ -174,7 +180,9 @@ def statistic_page(person_id):
                              ignored_questions_amount))
 
         return render_template("statistic.html", person=person,
-                               AnswerState=AnswerState, subjects=subject_stat, timeline=timeline)
+                               AnswerState=AnswerState, subjects=subject_stat,
+                               timeline=timeline,
+                               pause_form=pause_form)
 
 
 @app.route("/questions", methods=["POST", "GET"])
