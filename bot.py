@@ -112,58 +112,53 @@ def select_groups(call: CallbackQuery):
 
 # первыйй ответ дня, пять правильых ответов подряд ачивкки
 
-def send_question(person: Person, pending_question: Question):
+def send_question(person: Person, answer: QuestionAnswer):
     markup = InlineKeyboardMarkup()
-    options = json.loads(pending_question.options)
-    question_text = pending_question.text
+    options = json.loads(answer.question.options)
+    question_text = answer.question.text
     buttons = []
     for answer_index in range(len(options)):
         question_text += '\n' + str(answer_index + 1) + '. ' + options[answer_index]
-        buttons.append(InlineKeyboardButton(answer_index + 1, callback_data='answer_' + str(pending_question.id) + '_' +
+        buttons.append(InlineKeyboardButton(answer_index + 1, callback_data='answer_' + str(answer.id) + '_' +
                                                                             str(answer_index + 1)))
-    markup.add(*buttons, InlineKeyboardButton('Не знаю:(', callback_data='answer_' + str(pending_question.id) + '_0', ),
+    markup.add(*buttons, InlineKeyboardButton('Не знаю:(', callback_data='answer_' + str(answer.id) + '_0', ),
                row_width=len(buttons))
 
     try:
         bot.send_message(person.tg_id, question_text, reply_markup=markup)
-    except Exception:
+    except Exception as e:
         pass
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('answer'))
 def check_answer(call: CallbackQuery):
     with db_session.create_session() as db:
-        _, question_id, answer_number = call.data.split('_')
-        question = db.get(Question, int(question_id))
+        _, answer_id, answer_number = call.data.split('_')
+        cur_answer = db.get(QuestionAnswer, int(answer_id))
 
         bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
-        if answer_number == str(question.answer):
+        if answer_number == str(cur_answer.question.answer):
             bot.send_message(call.from_user.id, 'Юхуууу, правильный ответ, на тебе котика')
             bot.send_sticker(call.message.chat.id,
                              'CAACAgIAAxkBAAKNcWS5VJzS8g3EFokDZRtF_6HdZeCWAALDEQACBAfQSWPVxMPrmkD0LwQ')
         else:
-            if question.article_url:
+            if cur_answer.question.article_url:
                 bot.send_message(call.from_user.id,
-                                 'Как жаль, ответ неправильный. Правильный ответ - '
-                                 + str(question.answer)
-                                 + '. Вот тебе интересная статья по этой теме.'
-                                 + '\n' + question.article_url)
+                                 'Как жаль, ответ неправильный. Правильный ответ - \"'
+                                 + json.loads(cur_answer.question.options)[cur_answer.question.answer - 1]
+                                 + '\". Вот тебе интересная статья по этой теме.'
+                                 + '\n' + cur_answer.question.article_url)
             else:
                 bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик. '
-                                                    'Правильный ответ ' + str(question.answer))
+                                                    'Правильный ответ \"' + json.loads(cur_answer.question.options)[
+                                     cur_answer.question.answer - 1] + "\"")
                 bot.send_sticker(call.from_user.id,
                                  'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
 
-        person_id = db.scalar(select(Person).where(Person.tg_id == call.from_user.id)).id
-        planned_question = db.scalars(select(QuestionAnswer).
-                                      where(QuestionAnswer.person_id == person_id,
-                                            QuestionAnswer.question_id == question.id,
-                                            QuestionAnswer.state == AnswerState.TRANSFERRED).
-                                      order_by(QuestionAnswer.ask_time)).first()
-        if planned_question is not None:
-            planned_question.person_answer = int(answer_number)
-            planned_question.state = AnswerState.ANSWERED
-            planned_question.answer_time = datetime.datetime.now()
+        if cur_answer is not None:
+            cur_answer.person_answer = int(answer_number)
+            cur_answer.state = AnswerState.ANSWERED
+            cur_answer.answer_time = datetime.datetime.now()
             db.commit()
 
 

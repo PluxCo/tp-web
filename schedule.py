@@ -170,6 +170,9 @@ class Schedule(Thread):
             #
             result_list = list(set(question_ids).difference(answered_question_ids))
 
+            if not question_ids:
+                return 0
+
             if len(result_list) > 0:
                 question = random.choice(result_list)
             else:
@@ -238,11 +241,10 @@ class Schedule(Thread):
                 if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
                     for person in persons:
                         questions_to_ask_now = self._plan_questions(person.id)
-                        if questions_to_ask_now:
-                            if len(questions_to_ask_now) != 0:
-                                question_for_person[person.id] = np.random.choice(questions_to_ask_now)
-                            else:
-                                question_for_person[person.id] = self._random_question(person.id)
+                        if len(questions_to_ask_now) != 0:
+                            question_for_person[person.id] = np.random.choice(questions_to_ask_now)
+                        else:
+                            question_for_person[person.id] = self._random_question(person.id)
                     self._send_to_people(question_for_person)
                     previous_call = now
 
@@ -252,11 +254,13 @@ class Schedule(Thread):
         with create_session() as db:
             for person_id in question_to_person:
                 question_id = int(question_to_person[person_id])
+                if not question_id:
+                    return
+
                 person_id: int
 
                 question = db.get(questions.Question, int(question_id))
                 person = db.get(users.Person, person_id)
-                self._callback(person, question)  # Send a question to a person
 
                 answer = db.scalars(select(questions.QuestionAnswer).where(
                     questions.QuestionAnswer.question_id == question.id).where(
@@ -265,3 +269,5 @@ class Schedule(Thread):
                     questions.QuestionAnswer.ask_time)).first()
                 answer.state = questions.AnswerState.TRANSFERRED  # Mark an answer as transferred (sent)
                 db.commit()
+
+                self._callback(person, answer)  # Send a question to a person
