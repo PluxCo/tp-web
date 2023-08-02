@@ -1,3 +1,4 @@
+let delayed;
 new Chart(
     document.getElementById('QuestionChart'),
     {
@@ -30,7 +31,7 @@ new Chart(
                             return `${value} %`
                         }
                     },
-                    max: 100
+                    grace: '5%'
                 },
                 x: {
                     grid: {
@@ -53,6 +54,18 @@ new Chart(
                         }
                     }
                 }
+            },
+            animation: {
+                onComplete: () => {
+                    delayed = true;
+                },
+                delay: (context) => {
+                    let delay = 0;
+                    if (context.type === 'data' && !delayed) {
+                        delay = context.dataIndex * 300 + context.datasetIndex * 100;
+                    }
+                    return delay;
+                },
             }
         }
     }
@@ -94,7 +107,7 @@ new Chart(
             ]
         },
         options: {
-            locale: 'ru-RU',
+            locale: 'en-US',
             maintainAspectRatio: false,
             elements: {
                 point: {
@@ -103,6 +116,7 @@ new Chart(
             },
             scales: {
                 x: {
+                    type: 'time',
                     grid: {
                         display: true,
                         color: "rgba(104,157,61,0.2)",

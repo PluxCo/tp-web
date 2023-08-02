@@ -2,8 +2,53 @@
 
 {% block content %}
     <link rel="stylesheet" href="{{ url_for('static', filename='statistic.css') }}">
+    <script>
+        {%- set bar_values = [] -%}
+        {%- set bar_labels = [] -%}
+        {%- set timeline_labels = [] -%}
+        {%- set timeline_values_correct = [] -%}
+        {%- set timeline_values_incorrect = [] -%}
+        {%- set timeline_values_ignored = [] -%}
+
+        {%- for name, correct, answered, all, answers in subjects -%}
+            {%- if answered != 0 -%}
+                {{- bar_values.append( (correct / answered * 100) | round(1, 'floor') ) or "" -}}
+            {%- else -%}
+                {{- bar_values.append( 0 ) or "" -}}
+            {%- endif -%}
+            {{- bar_labels.append( name ) or "" -}}
+        {%- endfor -%}
+        {%- for time, correct , incorrect, ignored in timeline -%}
+            {{- timeline_values_correct.append( correct ) or "" -}}
+            {{- timeline_values_incorrect.append( incorrect ) or "" -}}
+            {{- timeline_values_ignored.append( ignored ) or "" -}}
+            {{- timeline_labels.append( time ) or "" -}}
+        {%- endfor -%}
+        config = {
+            bar_values: {{ bar_values }},
+            bar_labels: {{ bar_labels|safe }},
+            timeline_values_correct: {{ timeline_values_correct }},
+            timeline_values_incorrect: {{ timeline_values_incorrect }},
+            timeline_values_ignored: {{ timeline_values_ignored | safe }},
+            timeline_labels: {{ timeline_labels | safe }},
+        }
+    </script>
+    <script type="module" src="{{ url_for('static', filename='charts.js') }}"></script>
     <div class="container-lg">
         <h2>{{ person.full_name }}</h2>
+
+        <div class="row">
+            <div class="col-sm">
+                <div class="chart-container">
+                    <canvas id="QuestionChart"></canvas>
+                </div>
+            </div>
+            <div class="col-sm">
+                <div class="chart-container">
+                    <canvas id="Timeline"></canvas>
+                </div>
+            </div>
+        </div>
         <div class="row table-responsive" id="timeline">
             <table class="table">
                 <tr>
@@ -33,53 +78,8 @@
                 </tr>
             </table>
         </div>
+        <h3>Subjects</h3>
         <div class="row">
-            <div class="col-sm">
-                <div class="chart-container">
-                    <canvas id="QuestionChart"></canvas>
-                </div>
-            </div>
-            <div class="col-sm">
-                <div class="chart-container">
-                    <canvas id="Timeline"></canvas>
-                </div>
-            </div>
-        </div>
-        <script>
-            {%- set bar_values = [] -%}
-            {%- set bar_labels = [] -%}
-            {%- set timeline_labels = [] -%}
-            {%- set timeline_values_correct = [] -%}
-            {%- set timeline_values_incorrect = [] -%}
-            {%- set timeline_values_ignored = [] -%}
-
-            {%- for name, correct, answered, all, answers in subjects -%}
-                {%- if answered != 0 -%}
-                    {{- bar_values.append( (correct / answered * 100) | round(1, 'floor') ) or "" -}}
-                {%- else -%}
-                    {{- bar_values.append( 0 ) or "" -}}
-                {%- endif -%}
-                {{- bar_labels.append( name ) or "" -}}
-            {%- endfor -%}
-            {%- for time, correct , incorrect, ignored in timeline -%}
-                {{- timeline_values_correct.append( correct ) or "" -}}
-                {{- timeline_values_incorrect.append( incorrect ) or "" -}}
-                {{- timeline_values_ignored.append( ignored ) or "" -}}
-                {{- timeline_labels.append( time ) or "" -}}
-            {%- endfor -%}
-            config = {
-                bar_values: {{ bar_values }},
-                bar_labels: {{ bar_labels|safe }},
-                timeline_values_correct: {{ timeline_values_correct }},
-                timeline_values_incorrect: {{ timeline_values_incorrect }},
-                timeline_values_ignored: {{ timeline_values_ignored | safe }},
-                timeline_labels: {{ timeline_labels | safe }},
-            }
-        </script>
-        <script type="module" src="{{ url_for('static', filename='charts.js') }}"></script>
-
-        <div class="row">
-            <h3>Subjects</h3>
             <div class="accordion" id="groups_stat">
                 {% for name, correct, answered, all, answers in subjects %}
                     <div class="accordion-item">

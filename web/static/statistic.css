@@ -1,7 +1,11 @@
 .row {
     padding-left: 4%;
-    margin-top: 3rem;
     margin-bottom: 3rem;
+    margin-top: 2rem;
+}
+
+.container-lg {
+    margin-top: 2rem;
 }
 
 .chart-container {

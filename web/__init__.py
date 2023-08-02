@@ -60,8 +60,45 @@ def logout_page():
 def main_page():
     if not current_user.is_authenticated:
         return redirect("/login")
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        data = []
+        timeline_correct = []
+        timeline_incorrect = []
+        id_to_name = []
+        for person in persons:
+            id_to_name.append((person.id, person.full_name))
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
 
-    return render_template("index.html")
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
+
+                if answers:
+                    answered_count += 1
+                    if answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+            data.append((person.id, person.full_name, correct_count, answered_count, questions_count))
+
+        all_correct_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
+        all_incorrect_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
+        for answer in all_correct_answers:
+            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
+        for answer in all_incorrect_answers:
+            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
+    return render_template("index.html", data=data, timeline_correct=timeline_correct,
+                           timeline_incorrect=timeline_incorrect, id_to_name=id_to_name)
 
 
 # noinspection PyTypeChecker
@@ -72,7 +109,6 @@ def statistic_page(person_id):
 
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
-
         subject_stat = []
         timeline = []
 
@@ -131,7 +167,7 @@ def statistic_page(person_id):
                                                                            QuestionAnswer.state != AnswerState.ANSWERED,
                                                                            QuestionAnswer.person_answer == None))
 
-            timeline.append((check_time.strftime("%d %b"), correct_questions_amount, incorrect_questions_amount,
+            timeline.append((check_time.timestamp() * 1000, correct_questions_amount, incorrect_questions_amount,
                              ignored_questions_amount))
 
         return render_template("statistic.html", person=person,
