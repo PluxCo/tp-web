@@ -9,6 +9,7 @@ class PersonGroupAssociation(SqlAlchemyBase):
 
     person_id = Column(ForeignKey("persons.id"), primary_key=True)
     group_id = Column(ForeignKey("person_groups.id"), primary_key=True)
+    target_level = Column(Integer)
 
 
 class PersonGroup(SqlAlchemyBase):

@@ -20,14 +20,14 @@ class Settings(dict):
 
         if not os.path.exists(filename):
             with open(filename, "wb") as file:
-                pickle.dump(Settings(), file)
+                pickle.dump(dict(), file)
 
         with open(filename, "rb") as file:
             self.update(pickle.load(file))
 
     def update_settings(self):
         with open(self.file, "wb") as file:
-            pickle.dump(self, file)
+            pickle.dump(self.copy(), file)
         for handler in self._update_handlers:
             handler()
 

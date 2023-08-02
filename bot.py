@@ -146,25 +146,41 @@ def send_question(person: Person, pending_question: Question):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('answer'))
 def check_answer(call: CallbackQuery):
-    bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
-    _, question_id, answer_number = call.data.split('_')
-    if answer_number == str(question[call.from_user.id][int(question_id)].answer):
-        bot.send_message(call.from_user.id, 'Юхуууу, правильный ответ, на тебе котика')
-        bot.send_sticker(call.message.chat.id,
-                         'CAACAgIAAxkBAAKNcWS5VJzS8g3EFokDZRtF_6HdZeCWAALDEQACBAfQSWPVxMPrmkD0LwQ')
-    else:
-        if question[call.from_user.id][int(question_id)].article_url:
-            bot.send_message(call.from_user.id,
-                             'Как жаль, ответ неправильный. Правильный ответ - '
-                             + str(question[call.from_user.id][int(question_id)].answer)
-                             + '. Вот тебе интересная статья по этой теме.'
-                             + '\n' + question[call.from_user.id][int(question_id)].article_url)
+    with db_session.create_session() as db:
+        _, question_id, answer_number = call.data.split('_')
+        merged_question = db.get(Question, int(question_id))
+
+        bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
+        if answer_number == str(merged_question.answer):
+            bot.send_message(call.from_user.id, 'Юхуууу, правильный ответ, на тебе котика')
+            bot.send_sticker(call.message.chat.id,
+                             'CAACAgIAAxkBAAKNcWS5VJzS8g3EFokDZRtF_6HdZeCWAALDEQACBAfQSWPVxMPrmkD0LwQ')
         else:
-            bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик. '
-                                                'Правильный ответ ' + str(question[call.from_user.id][int(question_id)].answer))
-            bot.send_sticker(call.from_user.id,
-                             'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
-    return answer_number
+            if merged_question.article_url:
+                bot.send_message(call.from_user.id,
+                                 'Как жаль, ответ неправильный. Правильный ответ - '
+                                 + str(merged_question.answer)
+                                 + '. Вот тебе интересная статья по этой теме.'
+                                 + '\n' + merged_question.article_url)
+            else:
+                bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик. '
+                                                    'Правильный ответ ' + str(merged_question.answer))
+                bot.send_sticker(call.from_user.id,
+                                 'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
+
+        question_id = merged_question.id
+        person_answer = int(answer_number)
+        person_id = db.scalar(select(users.Person).where(users.Person.tg_id == call.from_user.id)).id
+        planned_question = db.scalars(select(questions.QuestionAnswer).where(
+            questions.QuestionAnswer.person_id == person_id).where(
+            questions.QuestionAnswer.question_id == question_id).where(
+            questions.QuestionAnswer.state == questions.AnswerState.TRANSFERRED).order_by(
+            questions.QuestionAnswer.ask_time)).first()
+        if planned_question is not None:
+            planned_question.person_answer = person_answer
+            planned_question.state = questions.AnswerState.ANSWERED
+            planned_question.answer_time = datetime.datetime.now()
+            db.commit()
 
 
 def start_bot():
