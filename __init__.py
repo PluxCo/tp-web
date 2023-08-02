@@ -1,25 +1,20 @@
 import datetime
 import json
 import os
-import itertools
 
-import sqlalchemy
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO
 from sqlalchemy import select, func, distinct
-from sqlalchemy.orm import aliased
 
 import schedule
 import tools
 from models import db_session
-
-from models.questions import QuestionAnswer, Question, QuestionGroupAssociation, AnswerState
+from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
-
-from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
+from web.forms.users import LoginForm, UserCork, CreateGroupForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -67,7 +62,7 @@ def main_page():
         timeline_incorrect = []
         id_to_name = []
         for person in persons:
-            id_to_name.append((person.id, person.full_name))
+            id_to_name.append(person.full_name)
             all_questions = db.scalars(select(Question).
                                        join(Question.groups).
                                        where(PersonGroup.id.in_(pg.id for pg in person.groups)).
@@ -97,8 +92,12 @@ def main_page():
             timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
         for answer in all_incorrect_answers:
             timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
-    return render_template("index.html", data=data, timeline_correct=timeline_correct,
-                           timeline_incorrect=timeline_incorrect, id_to_name=id_to_name)
+
+        config = {"timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
+                  "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
+                  "id_to_name": id_to_name}
+
+    return render_template("index.html", data=data, config=json.dumps(config))
 
 
 # noinspection PyTypeChecker

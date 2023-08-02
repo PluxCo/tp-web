@@ -3,20 +3,7 @@
 {% block content %}
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
     <script>
-        {%- set timeline_data = '' -%}
-        config = {
-            timeline_data_correct: {{- '[' -}}
-            {%- for x, y, r in timeline_correct -%}
-                {{- '{x: ' + x|string + ', y: ' + y|string + ', r: ' + r|string + '}, ' -}}
-            {%- endfor -%}
-            {{- ']' -}},
-            timeline_data_incorrect: {{- '[' -}}
-            {%- for x, y, r in timeline_incorrect -%}
-                {{- '{x: ' + x|string + ', y: ' + y|string + ', r: ' + r|string + '}, ' -}}
-            {%- endfor -%}
-            {{- ']' -}},
-            id_to_name: {{ id_to_name | safe }}
-        }
+        let config = {{ config | safe}};
     </script>
     <script type="module" src="{{ url_for('static', filename='index_charts.js') }}"></script>
     <div class="container d-flex">
