@@ -53,7 +53,7 @@ def fake_db(session: Session, scale=None):
     db.commit()
 
     for i in range(0, scale[3]):
-        answer = questions.QuestionAnswer()
+        answer = db.merge(questions.QuestionAnswer())
         answer.question = fake.random_element(elements=question_list)
         answer.question_id = answer.question.id
 

@@ -1,23 +1,23 @@
+import datetime
 import json
 import os
-import itertools
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO
 from sqlalchemy import select, func, distinct
-from sqlalchemy.orm import aliased
 
 import schedule
 import tools
 from models import db_session
-
-from models.questions import QuestionAnswer, Question, QuestionGroupAssociation, AnswerState
+from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm
 from web.forms.questions import CreateQuestionForm, ImportQuestionForm
+
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
+from web.forms.users import LoginForm, UserCork, CreateGroupForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -58,8 +58,49 @@ def logout_page():
 def main_page():
     if not current_user.is_authenticated:
         return redirect("/login")
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        data = []
+        timeline_correct = []
+        timeline_incorrect = []
+        id_to_name = []
+        for person in persons:
+            id_to_name.append(person.full_name)
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
 
-    return render_template("index.html")
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
+
+                if answers:
+                    answered_count += 1
+                    if answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+            data.append((person.id, person.full_name, correct_count, answered_count, questions_count))
+
+        all_correct_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
+        all_incorrect_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
+        for answer in all_correct_answers:
+            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
+        for answer in all_incorrect_answers:
+            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
+
+        config = {"timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
+                  "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
+                  "id_to_name": id_to_name}
+
+    return render_template("index.html", data=data, config=json.dumps(config))
 
 
 # noinspection PyTypeChecker
@@ -70,8 +111,8 @@ def statistic_page(person_id):
 
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
-
         subject_stat = []
+        timeline = []
 
         for name in person_subjects:
             all_questions = db.scalars(select(Question).
@@ -111,8 +152,28 @@ def statistic_page(person_id):
 
             subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
 
+        for check_time in [datetime.datetime.now() + datetime.timedelta(x) for x in range(-200, 1)]:
+            correct_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.answer_time <= check_time,
+                                                                           QuestionAnswer.state == AnswerState.ANSWERED,
+                                                                           Question.answer == QuestionAnswer.person_answer))
+            incorrect_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.answer_time <= check_time,
+                                                                           QuestionAnswer.state == AnswerState.ANSWERED,
+                                                                           Question.answer != QuestionAnswer.person_answer))
+            ignored_questions_amount = db.scalar(
+                select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
+                                                                           QuestionAnswer.ask_time <= check_time,
+                                                                           QuestionAnswer.state != AnswerState.ANSWERED,
+                                                                           QuestionAnswer.person_answer == None))
+
+            timeline.append((check_time.timestamp() * 1000, correct_questions_amount, incorrect_questions_amount,
+                             ignored_questions_amount))
+
         return render_template("statistic.html", person=person,
-                               AnswerState=AnswerState, subjects=subject_stat)
+                               AnswerState=AnswerState, subjects=subject_stat, timeline=timeline)
 
 
 @app.route("/questions", methods=["POST", "GET"])
