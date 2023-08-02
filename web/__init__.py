@@ -105,6 +105,7 @@ def main_page():
 
 # noinspection PyTypeChecker
 @app.route("/statistic/<int:person_id>")
+@login_required
 def statistic_page(person_id):
     with db_session.create_session() as db:
         person = db.scalars(select(Person).where(Person.id == person_id)).first()
