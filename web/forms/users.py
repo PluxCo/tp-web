@@ -4,14 +4,16 @@ from wtforms import SubmitField
 from wtforms.fields import PasswordField, StringField
 from wtforms.validators import DataRequired, ValidationError
 
+from ._ext import BasePrefixedForm
+
 from models import db_session, users
 
 
-class LoginForm(FlaskForm):
+class LoginForm(BasePrefixedForm):
     passwd = PasswordField("Password", validators=[DataRequired()])
 
 
-class CreateGroupForm(FlaskForm):
+class CreateGroupForm(BasePrefixedForm):
     name = StringField("Label", validators=[DataRequired()])
 
     create_group = SubmitField("Create")
