@@ -238,10 +238,11 @@ class Schedule(Thread):
                 if self._week_days is None or (WeekDays(now.weekday()) in self._week_days):
                     for person in persons:
                         questions_to_ask_now = self._plan_questions(person.id)
-                        if len(questions_to_ask_now) != 0:
-                            question_for_person[person.id] = np.random.choice(questions_to_ask_now)
-                        else:
-                            question_for_person[person.id] = self._random_question(person.id)
+                        if questions_to_ask_now:
+                            if len(questions_to_ask_now) != 0:
+                                question_for_person[person.id] = np.random.choice(questions_to_ask_now)
+                            else:
+                                question_for_person[person.id] = self._random_question(person.id)
                     self._send_to_people(question_for_person)
                     previous_call = now
 

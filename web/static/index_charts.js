@@ -38,7 +38,10 @@ const bubble_chart = new Chart(
                 x: {
                     type: 'time',
                     ticks: {
-                        maxTicksLimit: 15,
+                        autoSkip: true,
+                        autoSkipPadding: 50,
+                        maxRotation: 0,
+                        maxTicksLimit: 7
                     },
                     grid: {
                         display: true
@@ -60,6 +63,22 @@ const bubble_chart = new Chart(
                             return label;
                         }
                     }
+                },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'xy',
+                        modifierKey: 'cmd',
+                    },
+                    zoom: {
+                        mode: 'xy',
+                        drag: {
+                            enabled: true,
+                            borderColor: 'rgb(54, 162, 235)',
+                            borderWidth: 1,
+                            backgroundColor: 'rgba(54, 162, 235, 0.3)'
+                        }
+                    }
                 }
             }
         }
@@ -75,3 +94,16 @@ bubble_chart_canvas.onclick = (evt) => {
 
     window.location.href = "/statistic/" + bubble_chart.data.datasets[res[0].datasetIndex].data[res[0].index].y;
 };
+
+var manager = new Hammer.Manager(bubble_chart_canvas);
+
+var DoubleTap = new Hammer.Tap({
+    event: 'doubletap',
+    taps: 2
+});
+
+manager.add(DoubleTap);
+
+manager.on('doubletap', function (e) {
+    bubble_chart.resetZoom();
+});

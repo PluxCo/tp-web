@@ -126,7 +126,7 @@ def send_question(person: Person, pending_question: Question):
 
     try:
         bot.send_message(person.tg_id, question_text, reply_markup=markup)
-    except telebot.ExceptionHandler:
+    except Exception:
         pass
 
 
