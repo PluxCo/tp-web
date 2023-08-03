@@ -9,12 +9,13 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 
 from models import db_session
 from models.questions import Question, QuestionAnswer, AnswerState
-from models.users import Person, PersonGroup
+from models.users import Person, PersonGroup, PersonGroupAssociation
 from tools import Settings
 import random
 
 bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
+target_levels = dict()
 stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFwACerrwSw3OVyhI-ZjLLwQ",
                              "CAACAgIAAxkBAAKmFWTKqiMrZzmS3yHPHN3nAAHUbElf3gACgRMAAvop0En6hsvCGJL_oy8E",
                              "CAACAgIAAxkBAAKlfGTKcYgpLL0FuHVCcRa_3cQBqnfJAAI0EgACEoP5S_q_MUdvvcoCLwQ",
@@ -68,6 +69,43 @@ def submit_buttons(call: CallbackQuery):
         add_new_person(call)
 
 
+def target_level(message: Message):
+    tg_id = message.chat.id
+
+    if list(people[tg_id].groups):
+        bot.send_message(tg_id, "Теперь нужно ввести уровень каждой выбранной вами группы(уровень - целое число)")
+        bot.send_message(tg_id, list(people[tg_id].groups)[0].name)
+        target_levels[tg_id] = []
+    else:
+        bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                                "на которые нужно будет отвечать. Желаю удачи")
+
+
+@bot.message_handler()
+def add_target_level(message: Message):
+    if not message.text.isdigit():
+        bot.send_message(message.from_user.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
+    else:
+        with db_session.create_session():
+            target_levels[message.chat.id].append(int(message.text))
+            if len(target_levels[message.from_user.id]) < len(people[message.chat.id].groups):
+                bot.send_message(message.from_user.id, people[message.chat.id].groups[len(target_levels)].name)
+            else:
+                update_target_levels(message)
+
+
+def update_target_levels(message: Message):
+    tg_id = message.chat.id
+    with db_session.create_session() as db:
+        for group in range(len(target_levels[tg_id])):
+            level = db.scalar(select(PersonGroupAssociation).where(PersonGroupAssociation.person_id == people[tg_id].id)
+                              .where(PersonGroupAssociation.group_id == people[tg_id].groups[group].id))
+            level.target_level = target_levels[tg_id][group]
+            db.commit()
+    bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                                    "на которые нужно будет отвечать. Желаю удачи")
+
+
 def password_check(message: Message):
     if message.text == Settings()["tg_pin"]:
         person_in_db = False
@@ -114,9 +152,7 @@ def add_new_person(call: CallbackQuery):
     with db_session.create_session() as db:
         db.add(people[telegram_id])
         db.commit()
-        bot.send_message(call.message.chat.id,
-                         'Опрос пройден успешно. Теперь каждый день тебе будут присылаться тестовые вопросы, на которые'
-                         'нужно отвечать) Желаю удачи.')
+        target_level(call.message)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('group'))
