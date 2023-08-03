@@ -1,12 +1,15 @@
 FROM python:3.10-slim-buster
-LABEL authors="antonchuvashov"
+LABEL authors="plux"
 
 WORKDIR /app
+VOLUME /app/data
+EXPOSE 5000
 
 COPY requirements.txt requirements.txt
 
-RUN pip3 install -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python3", "main.py"]
+CMD ["python", "main.py"]

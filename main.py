@@ -24,11 +24,11 @@ default_settings = {"tg_pin": "32266",
                     }
 
 if __name__ == '__main__':
-    Settings().setup("settings.stg", default_settings)
-    db_session.global_init("database.db")
+    Settings().setup("data/settings.stg", default_settings)
+    db_session.global_init("data/database.db")
 
     schedule.Schedule(send_question).from_settings().start()
 
     bot = start_bot()
 
-    web.run(debug=True, use_reloader=False)
+    web.run(host="0.0.0.0", debug=True, use_reloader=False)
