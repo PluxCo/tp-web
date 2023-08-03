@@ -9,11 +9,43 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 
 from models import db_session
 from models.questions import Question, QuestionAnswer, AnswerState
-from models.users import Person, PersonGroup
+from models.users import Person, PersonGroup, PersonGroupAssociation
 from tools import Settings
+import random
 
 bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
+target_levels = dict()
+stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFwACerrwSw3OVyhI-ZjLLwQ",
+                             "CAACAgIAAxkBAAKmFWTKqiMrZzmS3yHPHN3nAAHUbElf3gACgRMAAvop0En6hsvCGJL_oy8E",
+                             "CAACAgIAAxkBAAKlfGTKcYgpLL0FuHVCcRa_3cQBqnfJAAI0EgACEoP5S_q_MUdvvcoCLwQ",
+                             "CAACAgIAAxkBAAKliGTKccWCj0_bLU0W6tV_ki-1xf1nAAJQFAACNX_ZSVKaub2cKslJLwQ",
+                             "CAACAgIAAxkBAAKlkmTKcdxrsCohi6uqdA9mYfIL3H8HAAIiHQAC_spBS1V-vfQ_LslrLwQ",
+                             "CAACAgIAAxkBAAKmEWTKqdm13n6k2GwYH-zdGQABXoz4bQAC3RgAApPBuEmJNu5i8B3Qiy8E",
+                             "CAACAgIAAxkBAAKmJWTKqs5ELvVB6k_6ytKQYlVVwQUYAALhEQACpY3QSce04DLP8_LOLwQ",
+                             "CAACAgIAAxkBAAKmJ2TKqt1ab7BNNdmETod0yvJkjqLEAALTFAAC66fQSVVyDz8ueKoYLwQ",
+                             "CAACAgIAAxkBAAKllmTKcf0SFKClsR2U9g0wb3qO2TbIAAI2JAACk95BS5ci0XtsFrrHLwQ",
+                             "CAACAgIAAxkBAAKmG2TKqmR17PHvROuTpdNXFgb4KQNVAAIhFwAC2MvQSW6hA3Ao-0wGLwQ",
+                             "CAACAgIAAxkBAAKmEWTKqdm13n6k2GwYH-zdGQABXoz4bQAC3RgAApPBuEmJNu5i8B3Qiy8E",
+                             "CAACAgIAAxkBAAKlmmTKchX8YZzr06N4WY61axvxjxMAA-sjAAI_5QFJd-WSKHcMUZMvBA"],
+            "wrong_answer": ["CAACAgIAAxkBAAKlfmTKcY0cqGG0ohcLIzmRBl9h_PqUAAJwEgAC3qnwS3wgIciw53erLwQ",
+                             "CAACAgIAAxkBAAKlgmTKcZtuRPIbFA-QSxy6QzuWospjAALAFwACSrFoSeIeiOZlqMJeLwQ",
+                             "CAACAgIAAxkBAAKmI2TKqromehDnnmvfSASnhMTgJjTIAAISFQACe0bRSdV02GHIxIkOLwQ",
+                             "CAACAgIAAxkBAAKmF2TKqkOczj8nzn0N_hmNBfVIkPWbAAIoFwACV8nRSaeLIyiBDmX6LwQ",
+                             "CAACAgIAAxkBAAKlhmTKcb6V68c-7WIG8iLXUR6_WSgvAAIhFgACsYbRSR7B4XMTciBILwQ",
+                             "CAACAgIAAxkBAAKmE2TKqfSFkgbLaDNbKvPLvyENua9xAAKrJgACMQtYSdkRj-6dgy0dLwQ",
+                             "CAACAgIAAxkBAAKmIWTKqqBUmIhbkQVx7z-i4PS2a2UaAALBFgACCG3QSUKgWjqKlKvrLwQ",
+                             "CAACAgIAAxkBAAKlimTKccuaj9BFKA9bkuRIHj2qSXTQAAJDEgACV6IwSTbcq4ACJlTALwQ",
+                             "CAACAgIAAxkBAAKmGWTKqlVtbHg3EH5na-DuwRjhvkizAAKQFAAC6HrQSTCdZmRbJ4SkLwQ",
+                             "CAACAgIAAxkBAAKljmTKcdSRkjGj70hVzCTSP5PDS1TaAAKUIgAC4DRASwQad8pJOZfILwQ",
+                             "CAACAgIAAxkBAAKlkGTKcdf-kennRmE7M_GSTUNpksJ_AAIkHwACb39BS6qGc0muzL_lLwQ",
+                             "CAACAgIAAxkBAAKlmGTKcgqcVQdm30vRVD4jiyp9hScYAAKcFgAC6055SNwcmwbagJ32LwQ"],
+            "is_registered": ["CAACAgIAAxkBAAKlnGTKc0H-rDxgA6FM5lEgZKmkkjS_AALhFQACtEzYSdncM8HesAgILwQ",
+                              "CAACAgIAAxkBAAKlnmTKc1hR_6CCFumJP-aEFzSVuiGRAAIBFQACfdZhSFpPzfo7g_TWLwQ",
+                              "CAACAgIAAxkBAAKloGTKc3CSpCThXBGehxLykzDBmu4LAAL-EQACjoTwS6n-wbNdcuFALwQ",
+                              "CAACAgIAAxkBAAKmH2TKqoUFNOK6dXkF9-35Oh_Lult9AAKuFQACO8LQSfxAhIpQexw9LwQ",
+                              "CAACAgIAAxkBAAKlomTKc4iyNtpBVEc46HeqOI1oWExnAAJUFAACSYP4S6j1CfCFqLj9LwQ"]
+            }
 
 
 @bot.message_handler(commands=["start"])
@@ -37,6 +69,43 @@ def submit_buttons(call: CallbackQuery):
         add_new_person(call)
 
 
+def target_level(message: Message):
+    tg_id = message.chat.id
+
+    if list(people[tg_id].groups):
+        bot.send_message(tg_id, "Теперь нужно ввести уровень каждой выбранной вами группы(уровень - целое число)")
+        bot.send_message(tg_id, list(people[tg_id].groups)[0].name)
+        target_levels[tg_id] = []
+    else:
+        bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                                "на которые нужно будет отвечать. Желаю удачи")
+
+
+@bot.message_handler()
+def add_target_level(message: Message):
+    if not message.text.isdigit():
+        bot.send_message(message.from_user.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
+    else:
+        with db_session.create_session():
+            target_levels[message.chat.id].append(int(message.text))
+            if len(target_levels[message.from_user.id]) < len(people[message.chat.id].groups):
+                bot.send_message(message.from_user.id, people[message.chat.id].groups[len(target_levels)].name)
+            else:
+                update_target_levels(message)
+
+
+def update_target_levels(message: Message):
+    tg_id = message.chat.id
+    with db_session.create_session() as db:
+        for group in range(len(target_levels[tg_id])):
+            level = db.scalar(select(PersonGroupAssociation).where(PersonGroupAssociation.person_id == people[tg_id].id)
+                              .where(PersonGroupAssociation.group_id == people[tg_id].groups[group].id))
+            level.target_level = target_levels[tg_id][group]
+            db.commit()
+    bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                                    "на которые нужно будет отвечать. Желаю удачи")
+
+
 def password_check(message: Message):
     if message.text == Settings()["tg_pin"]:
         person_in_db = False
@@ -48,6 +117,8 @@ def password_check(message: Message):
             bot.register_next_step_handler(msg, get_information_about_person)
         else:
             bot.send_message(message.chat.id, 'Вы уже зарегестрированы.')
+            bot.send_sticker(message.chat.id,
+                             stickers["is_registered"][random.randint(0, len(stickers["is_registered"]) - 1)])
     else:
         msg = bot.send_message(message.chat.id, 'Неверный код доступа. Попробуйте ещё раз.')
         bot.register_next_step_handler(msg, password_check)
@@ -58,7 +129,8 @@ def get_information_about_person(message: Message):
 
     if len(full_name.split()) < 3:
         bot.send_message(message.from_user.id,
-                         'Неправильный формат ввода. Обратите внимание на то, что нужно ввести Фамилию Имя Отчество. Попробуйте ввести ещё раз.')
+                         'Неправильный формат ввода. Обратите внимание на то, что нужно ввести Фамилию Имя Отчество. '
+                         'Попробуйте ввести ещё раз.')
         bot.register_next_step_handler(message, get_information_about_person)
     else:
         people[message.from_user.id] = Person()
@@ -80,9 +152,7 @@ def add_new_person(call: CallbackQuery):
     with db_session.create_session() as db:
         db.add(people[telegram_id])
         db.commit()
-        bot.send_message(call.message.chat.id,
-                         'Опрос пройден успешно. Теперь каждый день тебе будут присылаться тестовые вопросы, на которые '
-                         'нужно отвечать) Желаю удачи.')
+        target_level(call.message)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('group'))
@@ -138,22 +208,24 @@ def check_answer(call: CallbackQuery):
 
         bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
         if answer_number == str(cur_answer.question.answer):
-            bot.send_message(call.from_user.id, 'Юхуууу, правильный ответ, на тебе котика')
+            bot.reply_to(call.message, 'Юхуууу, правильный ответ, ты умнииичка')
             bot.send_sticker(call.message.chat.id,
-                             'CAACAgIAAxkBAAKNcWS5VJzS8g3EFokDZRtF_6HdZeCWAALDEQACBAfQSWPVxMPrmkD0LwQ')
+                             stickers["right_answer"][random.randint(0, len(stickers['right_answer']) - 1)])
         else:
             if cur_answer.question.article_url:
-                bot.send_message(call.from_user.id,
-                                 'Как жаль, ответ неправильный. Правильный ответ - \"'
-                                 + json.loads(cur_answer.question.options)[cur_answer.question.answer - 1]
-                                 + '\". Вот тебе интересная статья по этой теме.'
-                                 + '\n' + cur_answer.question.article_url)
-            else:
-                bot.send_message(call.from_user.id, 'Увы, ответ неправильный, не грустите, вот вам котик. '
-                                                    'Правильный ответ \"' + json.loads(cur_answer.question.options)[
-                                     cur_answer.question.answer - 1] + "\"")
+                bot.reply_to(call.message,
+                             'Как жаль, ответ неправильный. Правильный ответ - \"'
+                             + json.loads(cur_answer.question.options)[cur_answer.question.answer - 1]
+                             + '\". Вот тебе интересная статья по этой теме.'
+                             + '\n' + cur_answer.question.article_url)
                 bot.send_sticker(call.from_user.id,
-                                 'CAACAgIAAxkBAAKPKGS6egABoGGgMSoZw0FbL4DCE463GgACIxQAAuY5aUuwlIfNRnd6pi8E')
+                                 stickers["wrong_answer"][random.randint(0, len(stickers['wrong_answer']) - 1)])
+            else:
+                bot.reply_to(call.message, 'Увы, ответ неправильный, не грустите. '
+                                           'Правильный ответ \"' + json.loads(cur_answer.question.options)
+                             [cur_answer.question.answer - 1] + "\"")
+                bot.send_sticker(call.from_user.id,
+                                 stickers["wrong_answer"][random.randint(0, len(stickers['wrong_answer']) - 1)])
 
         if cur_answer is not None:
             cur_answer.person_answer = int(answer_number)
