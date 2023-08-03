@@ -84,12 +84,13 @@ def target_level(message: Message):
 @bot.message_handler()
 def add_target_level(message: Message):
     if not message.text.isdigit():
-        bot.send_message(message.from_user.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
+        bot.send_message(message.chat.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
     else:
         with db_session.create_session():
             target_levels[message.chat.id].append(int(message.text))
-            if len(target_levels[message.from_user.id]) < len(people[message.chat.id].groups):
-                bot.send_message(message.from_user.id, people[message.chat.id].groups[len(target_levels)].name)
+            if len(target_levels[message.chat.id]) < len(people[message.chat.id].groups):
+                bot.send_message(message.chat.id, people[message.chat.id].groups[len(target_levels[message.chat.id])].
+                                 name)
             else:
                 update_target_levels(message)
 
