@@ -61,9 +61,9 @@ def main_page():
         data = []
         timeline_correct = []
         timeline_incorrect = []
-        id_to_name = []
+        id_to_name = {}
         for person in persons:
-            id_to_name.append(person.full_name)
+            id_to_name[person.id] = person.full_name
             all_questions = db.scalars(select(Question).
                                        join(Question.groups).
                                        where(PersonGroup.id.in_(pg.id for pg in person.groups)).
@@ -98,7 +98,7 @@ def main_page():
                   "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
                   "id_to_name": id_to_name}
 
-    return render_template("index.html", data=data, config=json.dumps(config))
+    return render_template("index.html", data=data, config=json.dumps(config, ensure_ascii=False))
 
 
 # noinspection PyTypeChecker
@@ -159,7 +159,7 @@ def statistic_page(person_id):
 
             subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
 
-        for check_time in [datetime.datetime.now() + datetime.timedelta(x) for x in range(-200, 1)]:
+        for check_time in [datetime.datetime.now() + datetime.timedelta(x / 3) for x in range(-120, 1)]:
             correct_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
                                                                            QuestionAnswer.answer_time <= check_time,
