@@ -127,13 +127,22 @@ class Schedule(Thread):
         """
             Gives random question id within the same group, which hasn't been asked yet if such question exists
             Also adds this question to the database as a planned.
-
+            FIXME: Rewrite the whole generator since it's absolutely incorrect
         """
 
         with create_session() as db:
             groups = db.scalars(
                 select(users.PersonGroupAssociation).where(users.PersonGroupAssociation.person_id == person_id)).all()
             search_window = datetime.timedelta(self._distribution_function(self._repetition_amount))
+
+            all_planned_question_ids = [(answer.question_id, answer.question.level) for answer in db.scalars(
+                select(questions.QuestionAnswer).
+                where(questions.QuestionAnswer.state == questions.AnswerState.NOT_ANSWERED))]
+
+            answered_question_ids = [(answer.question_id, answer.question.level) for answer in db.scalars(
+                select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
+                    questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window,
+                    questions.QuestionAnswer.state == questions.AnswerState.ANSWERED))]
 
             group_level_differences = dict()
             current_levels = person_levels(person_id)
@@ -143,15 +152,28 @@ class Schedule(Thread):
                 group_level_differences[group.group_id] = group.target_level - current_levels[group.group_id]
 
             for worst_group_id in sorted(group_level_differences, key=group_level_differences.get, reverse=True):
-                question_level = round(
-                    half_normal(current_levels[worst_group_id], 1))  # Generating appropriate question level
-                if question_level <= 0:
-                    question_level = 1  # Check if the question level is positive otherwise chose the lowest
-
-                question_ids = [question.id for question in db.scalars(
+                question_ids = [(question.id, question.level) for question in db.scalars(
                     select(questions.Question).join(questions.Question.groups).where(
-                        users.PersonGroup.id == worst_group_id).where(questions.Question.level == question_level))]
-                if len(question_ids) > 0:
+                        users.PersonGroup.id == worst_group_id))]
+
+                #  Find intersection of questions to ask and questions which were asked earlier or planned
+                #
+                result_list = list(
+                    set(question_ids).difference(answered_question_ids).difference(all_planned_question_ids))
+                if not result_list:
+                    continue  # continue the loop if the result list is already empty
+
+                for _ in range(10):  # Trying to generate appropriate question (Completely dumb idea, but eh)
+                    question_level = round(
+                        half_normal(current_levels[worst_group_id], 1))  # Generating appropriate question level
+                    if question_level <= 0:
+                        question_level = 1  # Check if the question level is positive otherwise chose the lowest
+                    result_list = list(filter(lambda x: x[1] == question_level, result_list))
+                    # print(result_list)
+                    if result_list:
+                        break  # If the generating was successful
+
+                if len(result_list) != 0:
                     break  # If a group with questions to ask was found
 
             if len(question_ids) == 0:
@@ -162,21 +184,13 @@ class Schedule(Thread):
                     select(questions.Question).join(questions.Question.groups).where(
                         users.PersonGroup.id.in_(groups_n)))]
 
-            answered_question_ids = [answer.question_id for answer in db.scalars(
-                select(questions.QuestionAnswer).where(questions.QuestionAnswer.person_id == person_id).where(
-                    questions.QuestionAnswer.ask_time > datetime.datetime.now() - search_window))]
-
-            #  Find intersection of questions to ask and questions which were asked earlier
-            #
-            result_list = list(set(question_ids).difference(answered_question_ids))
-
             if not question_ids:
                 return 0
 
             if len(result_list) > 0:
-                question = random.choice(result_list)
+                question = random.choice(result_list)[0]
             else:
-                question = random.choice(question_ids)
+                question = random.choice(question_ids)[0]
 
             # Add questions to the database as planned
             #
