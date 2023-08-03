@@ -1,33 +1,87 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-lg">
-    <div class="row">
-        <div class="col-12 col-lg-6 offset-lg-3">
-            <h2>Settings</h2>
+    <div class="container-lg">
+        <h1>Settings</h1>
+        <div class="row">
+            <h3>Person groups</h3>
+            <div class="col">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Label</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for g in groups %}
+                        <tr>
+                            <th scope="col">{{ g.id }}</th>
+                            <th scope="col">{{ g.name }}</th>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col">
+                <form method="POST" action="">
+                    {{ create_group_form.csrf_token }}
+                    <div class="mb-3">
+                        {{ create_group_form.name.label(class_="form-label") }}
+                        {{ create_group_form.name(class_="form-control") }}
+                    </div>
+                    {% for field, error in create_group_form.errors.items() %}
+                        <div class="alert alert-warning">
+                            {{ "\n".join(error) }}
+                        </div>
+                    {% endfor %}
+                    {{ create_group_form.create_group(class_="btn btn-success float-end") }}
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <h3>Telegram</h3>
             <form method="POST" action="">
-                {{ form.csrf_token }}
-                <div>
-                    <h4>Protection</h3>
-                    <div class="mb-3">
-                        {{ form.protection_type.label(class_="form-label") }}
-                        {{ form.protection_type(class_="form-control") }}
-                    </div>
-                    <div class="mb-3">
-                        {{ form.protection_key.label(class_="form-label") }}
-                        {{ form.protection_key(class_="form-control") }}
-                    </div>
+                {{ tg_settings_form.csrf_token }}
+                <div class="mb-3">
+                    {{ tg_settings_form.tg_pin.label(class_="form-label") }}
+                    {{ tg_settings_form.tg_pin(class_="form-control") }}
                 </div>
-                <div>
-                    <h4>Security</h3>
-                    <div class="mb-3">
-                        {{ form.bot_timeout.label(class_="form-label") }}
-                        {{ form.bot_timeout(class_="form-control") }}
+                {% for field, error in tg_settings_form.errors.items() %}
+                    <div class="alert alert-warning">
+                        {{ "\n".join(error) }}
                     </div>
+                {% endfor %}
+                {{ tg_settings_form.save_tg(class_="btn btn-success float-end") }}
+            </form>
+        </div>
+        <div class="row">
+            <h3>Schedule</h3>
+            <form method="POST" action="">
+                {{ schedule_settings_form.csrf_token }}
+                <div class="mb-3">
+                    {{ schedule_settings_form.time_period.label(class_="form-label") }}
+                    {{ schedule_settings_form.time_period(class_="form-control") }}
                 </div>
-                <button type="submit" name="accept_btn" class="btn btn-success float-end">Save</button>
+                <div class="mb-3">
+                    {{ schedule_settings_form.week_days.label(class_="form-label") }}
+                    {{ schedule_settings_form.week_days(class_="form-control selectpicker") }}
+                </div>
+                <div class="mb-3">
+                    {{ schedule_settings_form.from_time.label(class_="form-label") }}
+                    {{ schedule_settings_form.from_time(class_="form-control") }}
+                </div>
+                <div class="mb-3">
+                    {{ schedule_settings_form.to_time.label(class_="form-label") }}
+                    {{ schedule_settings_form.to_time(class_="form-control") }}
+                </div>
+                {% for field, error in schedule_settings_form.errors.items() %}
+                    <div class="alert alert-warning">
+                        {{ "\n".join(error) }}
+                    </div>
+                {% endfor %}
+                {{ schedule_settings_form.save_schedule(class_="btn btn-success float-end") }}
             </form>
         </div>
     </div>
-</div>
 {% endblock %}

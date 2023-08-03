@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ "active" if active_tab == "CREATE" else "" }}" id="create-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#create"
+                            type="button"
+                            role="tab" aria-controls="create">Create
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ "active" if active_tab == "IMPORT" else "" }}" id="import-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#import"
+                            type="button"
+                            role="tab" aria-controls="import">Import
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content p-3 mb-3 bg-body-tertiary shadow rounded-bottom">
+                <div class="tab-pane fade {{ "show active" if active_tab == "CREATE" else "" }}" id="create"
+                     role="tabpanel"
+                     aria-labelledby="create-tab">
+                    <h3>Create question</h3>
+                    <form method="POST" action="">
+                        {{ create_question_form.csrf_token }}
+                        <div class="row">
+                            <div class="col-4 d-flex flex-column gap-1">
+                                {{ create_question_form.text.label(class_="form-label") }}
+                                {{ create_question_form.text(class_="form-control h-100", placeholder="Какая команда используется для создания нового каталога в Bash?") }}
+
+                                {{ create_question_form.subject.label(class_="form-label") }}
+                                {{ create_question_form.subject(class_="form-control", placeholder="Bash") }}
+                            </div>
+                            <div class="col-4 d-flex flex-column gap-1">
+                                {{ create_question_form.options.label(class_="form-label") }}
+                                {{ create_question_form.options(class_="form-control h-100", placeholder="mkdir\ntouch\ncd\nls") }}
+
+                                {{ create_question_form.answer.label(class_="form-label") }}
+                                {{ create_question_form.answer(class_="form-control") }}
+                            </div>
+                            <div class="col-4 d-flex flex-column gap-1">
+                                {{ create_question_form.groups.label(class_="form-label") }}
+                                {{ create_question_form.groups(class_="form-control selectpicker", data_actions_box="true") }}
+
+                                {{ create_question_form.level.label(class_="form-label") }}
+                                {{ create_question_form.level(class_="form-control") }}
+
+                                {{ create_question_form.article.label(class_="form-label") }}
+                                {{ create_question_form.article(class_="form-control", placeholder="https://github.com/") }}
+
+                            </div>
+                        </div>
+                        {% for field, error in create_question_form.errors.items() %}
+                            <div class="alert alert-warning mt-3">
+                                {{ "\n".join(error) }}
+                            </div>
+                        {% endfor %}
+                        {{ create_question_form.create(class_="btn btn-success mt-3 float-end") }}
+                    </form>
+                </div>
+                <div class="tab-pane fade {{ "show active" if active_tab == "IMPORT" else "" }}" id="import"
+                     role="tabpanel" aria-labelledby="import-tab">
+                    <h3>Import questions</h3>
+                    <form method="POST" action="">
+                        {{ import_question_form.csrf_token }}
+                        <div class="row">
+                            <div class="col-6 d-flex flex-column gap-1">
+                                {{ import_question_form.import_data.label(class_="form-label") }}
+                                {{ import_question_form.import_data(class_="form-control", rows="8", placeholder="""[ {
+    \"question\": \"Какая команда используется для создания нового каталога в Bash?\",
+    \"options\": [\"mkdir\", \"touch\", \"cd\", \"ls\"],
+    \"answer\": \"mkdir\",
+    \"difficulty\": 2
+  }, ... ]""") }}
+                            </div>
+                            <div class="col-6 d-flex flex-column gap-1">
+                                {{ import_question_form.subject.label(class_="form-label") }}
+                                {{ import_question_form.subject(class_="form-control", placeholder="Bash") }}
+
+                                {{ import_question_form.groups.label(class_="form-label") }}
+                                {{ import_question_form.groups(class_="form-control selectpicker", data_actions_box="true") }}
+
+                                {{ import_question_form.article.label(class_="form-label") }}
+                                {{ import_question_form.article(class_="form-control", placeholder="https://github.com/") }}
+                            </div>
+                        </div>
+                        {% for field, error in import_question_form.errors.items() %}
+                            <div class="alert alert-warning mt-3">
+                                {{ "\n".join(error) }}
+                            </div>
+                        {% endfor %}
+                        {{ import_question_form.import_btn(class_="btn btn-success mt-3 float-end") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Text</th>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Options</th>
+                    <th scope="col">Correct answers</th>
+                    <th scope="col">Groups</th>
+                    <th scope="col">Difficulty</th>
+                    <th scope="col">Article</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for q in questions %}
+                    <tr>
+                        <th scope="row">{{ q.id }}</th>
+                        <td>{{ q.text }}</td>
+                        <td>{{ q.subject }}</td>
+                        <td>{{ q.options }}</td>
+                        <td>{{ q.answer }}</td>
+                        <td>{% for item in q.groups %}{{ item.name }}{% if not loop.last %},
+                        {% endif %}{% endfor %}</td>
+                        <td>{{ q.level }}</td>
+                        <td><a href="{{ q.article_url }}">{{ q.article_url }}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
