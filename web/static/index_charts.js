@@ -34,18 +34,21 @@ const bubble_chart = new Chart(
                         color: "rgba(104,157,61,0.2)"
                     },
                     display: false,
+                    grace: '5%'
                 },
                 x: {
                     type: 'time',
                     ticks: {
+                        major: {
+                            enabled: true
+                        },
                         autoSkip: true,
                         autoSkipPadding: 50,
                         maxRotation: 0,
-                        maxTicksLimit: 7
                     },
                     grid: {
                         display: true
-                    },
+                    }
                 }
             },
             plugins: {
@@ -58,7 +61,7 @@ const bubble_chart = new Chart(
                             let date = new Date(context.parsed.x).toString().split(' ')
                             let label = date[1] + ' ' + date[2] + ': '
                             if (context.parsed.y !== null) {
-                                label += config.id_to_name[context.parsed.y - 1];
+                                label += config.id_to_name[context.parsed.y];
                             }
                             return label;
                         }
