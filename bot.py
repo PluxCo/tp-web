@@ -240,8 +240,8 @@ def start_bot():
         while True:
             try:
                 bot.polling()
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
 
     bot_th = Thread(target=poller, daemon=True)
     bot_th.start()
