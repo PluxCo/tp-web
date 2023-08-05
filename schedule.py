@@ -9,9 +9,9 @@ from threading import Thread
 import abc
 
 import numpy as np
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
 
-from models import questions, users, db_session
+from models import db_session
 from models.db_session import create_session
 from models.questions import Question, QuestionAnswer, AnswerState
 from models.users import Person, PersonGroup
@@ -93,6 +93,57 @@ class SimpleRandomGenerator(GeneratorInterface):
         return cur_answer
 
 
+class StatRandomGenerator(GeneratorInterface):
+    def next_question(self, person: Person) -> QuestionAnswer:
+        with db_session.create_session() as db:
+            person_questions = db.scalars(select(Question).
+                                          join(Question.groups).
+                                          where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                          group_by(Question.id)).all()
+
+            probabilities = np.zeros(len(person_questions))
+
+            for i, question in enumerate(person_questions):
+                correct_count = db.scalar(select(func.count(QuestionAnswer.id)).
+                                          join(QuestionAnswer.question).
+                                          where(QuestionAnswer.person_id == person.id,
+                                                QuestionAnswer.question_id == question.id,
+                                                QuestionAnswer.person_answer == Question.answer))
+
+                last_correct_or_ignored = db.scalar(select(QuestionAnswer).
+                                                    join(QuestionAnswer.question).
+                                                    where(QuestionAnswer.person_id == person.id,
+                                                          QuestionAnswer.question_id == question.id,
+                                                          or_(QuestionAnswer.person_answer == Question.answer,
+                                                              QuestionAnswer.state == AnswerState.TRANSFERRED)).
+                                                    order_by(QuestionAnswer.ask_time.desc()))
+
+                if correct_count:
+                    probabilities[i] = ((datetime.datetime.now() - last_correct_or_ignored.ask_time).total_seconds() //
+                                        correct_count)
+                else:
+                    probabilities[i] = None
+
+            avg = sum(filter(lambda x: not np.isnan(x), probabilities)) / len(
+                list(filter(lambda x: not np.isnan(x), probabilities)))
+
+            probabilities[np.isnan(probabilities)] = avg
+
+            probabilities /= sum(probabilities)
+
+            question = np.random.choice(person_questions, p=probabilities)
+
+            cur_answer = QuestionAnswer(question_id=question.id,
+                                        person_id=person.id,
+                                        ask_time=datetime.datetime.now(),
+                                        state=AnswerState.NOT_ANSWERED)
+
+            db.add(cur_answer)
+            db.commit()
+
+        return cur_answer
+
+
 class Schedule(Thread):
     def __init__(self, callback):
         super().__init__(daemon=True)
@@ -106,7 +157,7 @@ class Schedule(Thread):
         self._to_time = None
         Settings().add_update_handler(self.from_settings)
 
-        self.generator: GeneratorInterface = SimpleRandomGenerator()
+        self.generator: GeneratorInterface = StatRandomGenerator()
 
     def from_settings(self):
         self._every = Settings()['time_period']
@@ -125,7 +176,7 @@ class Schedule(Thread):
         db = create_session()
         previous_call = None
         while True:
-            persons = db.scalars(select(users.Person)).all()
+            persons = db.scalars(select(Person)).all()
             now = datetime.datetime.now()
             if self._repetition_amount is not None:
                 previous_call = self._periodic_call(now, previous_call, persons)
