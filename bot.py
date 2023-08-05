@@ -237,7 +237,11 @@ def check_answer(call: CallbackQuery):
 
 def start_bot():
     def poller():
-        bot.polling(none_stop=True)
+        while True:
+            try:
+                bot.polling()
+            except Exception:
+                pass
 
     bot_th = Thread(target=poller, daemon=True)
     bot_th.start()
