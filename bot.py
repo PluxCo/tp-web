@@ -104,7 +104,7 @@ def update_target_levels(message: Message):
             level.target_level = target_levels[tg_id][group]
             db.commit()
     bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
-                                    "на которые нужно будет отвечать. Желаю удачи")
+                            "на которые нужно будет отвечать. Желаю удачи")
 
 
 def password_check(message: Message):
@@ -236,13 +236,6 @@ def check_answer(call: CallbackQuery):
 
 
 def start_bot():
-    def poller():
-        while True:
-            try:
-                bot.polling()
-            except Exception as e:
-                print(e)
-
-    bot_th = Thread(target=poller, daemon=True)
+    bot_th = Thread(target=bot.infinity_polling, daemon=True)
     bot_th.start()
     return bot
