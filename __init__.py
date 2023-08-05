@@ -183,8 +183,8 @@ def statistic_page(person_id):
             max_level = max(bar_stat[2])
         else:
             max_level = 0
-        progress_by_level = []
-        for i in range(0, max_level):
+        progress_by_level = [[]]
+        for i in range(1, max_level):
             progress_by_level.append([])
             for j in range(len(bar_stat[1])):
                 if i in bar_stat[1][j].keys():
