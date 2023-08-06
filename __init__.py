@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -183,12 +184,12 @@ def statistic_page(person_id):
             max_level = max(bar_stat[2])
         else:
             max_level = 0
-        progress_by_level = [[]]
-        for i in range(1, max_level):
+        progress_by_level = []
+        for i in range(0, max_level):
             progress_by_level.append([])
             for j in range(len(bar_stat[1])):
-                if i in bar_stat[1][j].keys():
-                    progress_by_level[i].append(bar_stat[1][j][i])
+                if (i + 1) in bar_stat[1][j].keys():
+                    progress_by_level[i].append(bar_stat[1][j][i + 1])
                 else:
                     progress_by_level[i].append(0)
 

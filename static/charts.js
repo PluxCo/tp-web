@@ -13,10 +13,10 @@ for (const timelineKey of config.timeline) {
 }
 
 let dataset = [];
-for (let i = 1; i < config.bar_data[2]; i++) {
+for (let i = 0; i < config.bar_data[2]; i++) {
     const a = {
         type: 'bar',
-        label: 'Level ' + i.toString(),
+        label: 'Level ' + (i + 1).toString(),
         data: config.bar_data[1][i],
         backgroundColor: colorize_bars((i - 1) / (config.bar_data[2] - 1)),
     }
@@ -169,11 +169,16 @@ let heatmap_data = [];
 for (let i = 0; i < config.bar_data[0].length; i++) {
     heatmap_data.push([]);
     for (let j = 0; j < config.bar_data[2]; j++) {
-        if (j > 0) {
-            heatmap_grid.push([i, j]);
-        }
+        heatmap_grid.push([i, j]);
         heatmap_data[i].push(config.bar_data[1][j][i]);
     }
+}
+
+function interpolate(x, y, z, t) {
+    const a = 2 * z - 4 * y + 2 * x;
+    const b = 4 * y - z - 3 * x;
+
+    return a * t * t + b * t + x;
 }
 
 function colorize_heatmap(opaque, context) {
@@ -181,11 +186,15 @@ function colorize_heatmap(opaque, context) {
     const x = value[0];
     const y = value[1];
     const heat = heatmap_data[x][y] / 100;
-    const first_color = [255, 247, 184];
-    const second_color = [92, 178, 112];
-    const r = first_color[0] + heat * (second_color[0] - first_color[0]);
-    const g = first_color[1] + heat * (second_color[1] - first_color[1]);
-    const b = first_color[2] + heat * (second_color[2] - first_color[2]);
+    const orange = [220, 227, 91];
+    const green = [69, 182, 73];
+    const rose = [239, 59, 54];
+    const r = interpolate(rose[0], orange[0], green[0], heat);
+    const g = interpolate(rose[1], orange[1], green[1], heat);
+    const b = interpolate(rose[2], orange[2], green[2], heat);
+    // const r = first_color[0] + heat * (second_color[0] - first_color[0]);
+    // const g = first_color[1] + heat * (second_color[1] - first_color[1]);
+    // const b = first_color[2] + heat * (second_color[2] - first_color[2]);
 
     const a = 0.8;
 
@@ -193,13 +202,12 @@ function colorize_heatmap(opaque, context) {
 }
 
 new Chart(document.getElementById('Heatmap'), {
-    type: 'scatter',
+    type: 'matrix',
     data: {
         datasets: [{
             data: heatmap_grid,
-            pointStyle: 'rect',
-            pointRadius: 30,
-            pointHoverRadius: 35
+            width: ({chart}) => (chart.chartArea || {}).width / (config.bar_data[0].length + 1) - 1,
+            height: ({chart}) => (chart.chartArea || {}).height / (config.bar_data[2] + 1) - 1,
         }]
     },
     options: {
@@ -212,30 +220,27 @@ new Chart(document.getElementById('Heatmap'), {
                     },
                 },
                 grid: {
-                    display: true,
-                    offset: true
+                    display: false,
+                    offset: false
                 },
-                min: -0.5,
+                min: -1,
                 max: config.bar_data[0].length,
+                offset: false
             },
             y: {
-                title: {
-                    display: true,
-                    text: "Level",
-                },
+                reverse: false,
                 grid: {
-                    display: true,
-                    offset: true
+                    display: false
                 },
                 ticks: {
                     callback: function (val, index) {
-                        if (val > 0) {
-                            return val;
+                        if (val > -1 && val < config.bar_data[2]) {
+                            return 'Level ' + (val + 1);
                         }
                     },
-                    maxTicksLimit: config.bar_data[2] + 1
+                    maxTicksLimit: config.bar_data[2] + 2
                 },
-                min: 0,
+                min: -1,
                 max: config.bar_data[2],
             }
         },
@@ -245,6 +250,11 @@ new Chart(document.getElementById('Heatmap'), {
             },
             tooltip: {
                 callbacks: {
+                    title: function (context) {
+                        let title = '';
+                        title += 'Level ' + (context[0].parsed.y + 1) + ' ' + config.bar_data[0][context[0].parsed.x];
+                        return title;
+                    },
                     label: function (context) {
                         let label = '';
                         if (context.parsed.y !== null) {
@@ -256,22 +266,24 @@ new Chart(document.getElementById('Heatmap'), {
             },
         },
         elements: {
-            point: {
+            matrix: {
                 backgroundColor: colorize_heatmap.bind(null, false),
                 borderColor: colorize_heatmap.bind(null, true),
             }
         },
         animation: {
-            onComplete: () => {
-                delayed[1] = true;
+            onComplete: (context) => {
+                if (context.type === 'data' && context.mode === 'attach') {
+                    delayed[1] = true;
+                }
             },
             delay: (context) => {
                 let delay = 0;
-                if (context.type === 'data' && context.mode === 'default' && !delayed[1]) {
+                if (context.type === 'data' && context.mode === 'attach' && !delayed[1]) {
                     delay = context.dataIndex * 30 + context.datasetIndex * 10;
+                    return delay;
                 }
-                return delay;
-            },
+            }
         }
     }
 });
