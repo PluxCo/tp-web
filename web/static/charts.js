@@ -7,9 +7,9 @@ let timeline_values_incorrect = [];
 
 for (const timelineKey of config.timeline) {
     timeline_labels.push(timelineKey[0])
+    timeline_values_correct.push(timelineKey[1])
+    timeline_values_incorrect.push(timelineKey[2])
     timeline_values_ignored.push(timelineKey[3])
-    timeline_values_correct.push(timelineKey[2])
-    timeline_values_incorrect.push(timelineKey[1])
 }
 
 let dataset = [];

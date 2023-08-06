@@ -207,7 +207,7 @@ def statistic_page(person_id):
             ignored_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
                                                                            QuestionAnswer.ask_time <= check_time,
-                                                                           QuestionAnswer.state != AnswerState.ANSWERED,
+                                                                           QuestionAnswer.state == AnswerState.TRANSFERRED,
                                                                            QuestionAnswer.person_answer == None))
 
             timeline.append((check_time.timestamp() * 1000, correct_questions_amount, incorrect_questions_amount,
