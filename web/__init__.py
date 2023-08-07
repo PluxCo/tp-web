@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -112,6 +113,7 @@ def statistic_page(person_id):
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
         subject_stat = []
+        bar_stat = [[], [], []]
         timeline = []
 
         if pause_form.pause.data and pause_form.validate():
@@ -129,7 +131,9 @@ def statistic_page(person_id):
                                        group_by(Question.id)).all()
 
             correct_count = 0
+            correct_count_by_level = {}
             answered_count = 0
+            answered_count_by_level = {}
             questions_count = len(all_questions)
             person_answers = []
 
@@ -146,10 +150,18 @@ def statistic_page(person_id):
                 answer_state = "NOT_ANSWERED"
                 if answers:
                     answered_count += 1
+
+                    if answers[-1].question.level not in answered_count_by_level.keys():
+                        answered_count_by_level[answers[-1].question.level] = 0
+                        correct_count_by_level[answers[-1].question.level] = 0
+
+                    answered_count_by_level[answers[-1].question.level] += 1
+
                     if answers[-1].state == AnswerState.TRANSFERRED:
                         answer_state = "IGNORED"
                     elif answers[-1].question.answer == answers[-1].person_answer:
                         correct_count += 1
+                        correct_count_by_level[answers[-1].question.level] += 1
                         answer_state = "CORRECT"
                     else:
                         answer_state = "INCORRECT"
@@ -158,7 +170,30 @@ def statistic_page(person_id):
                                        question_correct_count, question_incorrect_count))
 
             subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
+            progress_by_level = {}
 
+            for level in answered_count_by_level:
+                progress_by_level[level] = round(correct_count_by_level[level] / answered_count_by_level[level] * 100,
+                                                 1)
+
+            bar_stat[0].append(name)
+            bar_stat[1].append(progress_by_level)
+            if progress_by_level:
+                bar_stat[2].append(max(progress_by_level, key=progress_by_level.get))
+        if bar_stat[2]:
+            max_level = max(bar_stat[2])
+        else:
+            max_level = 0
+        progress_by_level = []
+        for i in range(0, max_level):
+            progress_by_level.append([])
+            for j in range(len(bar_stat[1])):
+                if (i + 1) in bar_stat[1][j].keys():
+                    progress_by_level[i].append(bar_stat[1][j][i + 1])
+                else:
+                    progress_by_level[i].append(0)
+
+        bar_data = [bar_stat[0], progress_by_level, max_level]
         for check_time in [datetime.datetime.now() + datetime.timedelta(x / 3) for x in range(-120, 1)]:
             correct_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
@@ -173,7 +208,7 @@ def statistic_page(person_id):
             ignored_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
                                                                            QuestionAnswer.ask_time <= check_time,
-                                                                           QuestionAnswer.state != AnswerState.ANSWERED,
+                                                                           QuestionAnswer.state == AnswerState.TRANSFERRED,
                                                                            QuestionAnswer.person_answer == None))
 
             timeline.append((check_time.timestamp() * 1000, correct_questions_amount, incorrect_questions_amount,
@@ -181,7 +216,7 @@ def statistic_page(person_id):
 
         return render_template("statistic.html", person=person,
                                AnswerState=AnswerState, subjects=subject_stat,
-                               timeline=timeline,
+                               timeline=timeline, bar_data=json.dumps(bar_data, ensure_ascii=False),
                                pause_form=pause_form)
 
 

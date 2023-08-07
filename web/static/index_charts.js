@@ -34,7 +34,8 @@ const bubble_chart = new Chart(
                         color: "rgba(104,157,61,0.2)"
                     },
                     display: false,
-                    grace: '5%'
+                    reverse: true,
+                    grace: '10%'
                 },
                 x: {
                     type: 'time',
@@ -88,7 +89,14 @@ const bubble_chart = new Chart(
     }
 )
 
+
+bubble_chart_canvas.ondblclick = (evt) => {
+    bubble_chart.resetZoom();
+};
+
 bubble_chart_canvas.onclick = (evt) => {
+    console.log(evt, 'chartjs')
+
     const res = bubble_chart.getElementsAtEventForMode(evt, 'nearest', {intersect: true}, true);
 
     if (res.length === 0) {
@@ -98,15 +106,3 @@ bubble_chart_canvas.onclick = (evt) => {
     window.location.href = "/statistic/" + bubble_chart.data.datasets[res[0].datasetIndex].data[res[0].index].y;
 };
 
-var manager = new Hammer.Manager(bubble_chart_canvas);
-
-var DoubleTap = new Hammer.Tap({
-    event: 'doubletap',
-    taps: 2
-});
-
-manager.add(DoubleTap);
-
-manager.on('doubletap', function (e) {
-    bubble_chart.resetZoom();
-});
