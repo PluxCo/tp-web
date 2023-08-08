@@ -14,7 +14,7 @@ from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
-from web.forms.questions import CreateQuestionForm, ImportQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -109,6 +109,9 @@ def statistic_page(person_id):
         pause_form = PausePersonForm()
         person = db.get(Person, person_id)
 
+        plan_form = PlanQuestionForm(ask_time=datetime.datetime.now() + tools.Settings()["time_period"],
+                                     person_id=person.id)
+
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
         subject_stat = []
@@ -119,6 +122,14 @@ def statistic_page(person_id):
             db.commit()
         if pause_form.unpause.data and pause_form.validate():
             person.is_paused = False
+            db.commit()
+
+        if plan_form.plan.data and plan_form.validate():
+            new_answer = QuestionAnswer(person_id=plan_form.person_id.data,
+                                        question_id=plan_form.question_id.data,
+                                        ask_time=plan_form.ask_time.data,
+                                        state=AnswerState.NOT_ANSWERED)
+            db.add(new_answer)
             db.commit()
 
         for name in person_subjects:
@@ -182,7 +193,7 @@ def statistic_page(person_id):
         return render_template("statistic.html", person=person,
                                AnswerState=AnswerState, subjects=subject_stat,
                                timeline=timeline,
-                               pause_form=pause_form)
+                               pause_form=pause_form, plan_form=plan_form)
 
 
 @socketio.on("get_question_stat")
