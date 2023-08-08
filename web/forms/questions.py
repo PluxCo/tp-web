@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import SubmitField, HiddenField
-from wtforms.fields import StringField, SelectField, IntegerField, TextAreaField, SelectMultipleField
+from wtforms.fields import StringField, DateTimeField, IntegerField, TextAreaField, SelectMultipleField
 from wtforms.validators import DataRequired, ValidationError
 
 from ._ext import BasePrefixedForm
@@ -29,6 +29,14 @@ class ImportQuestionForm(BasePrefixedForm):
     article = StringField("Article")
 
     import_btn = SubmitField("Create")
+
+
+class PlanQuestionForm(BasePrefixedForm):
+    question_id = IntegerField()
+    person_id = IntegerField()
+    ask_time = DateTimeField("Ask time", format='%d.%m.%Y %H:%M')
+
+    plan = SubmitField("Plan it")
 
 
 class EditQuestionForm(BasePrefixedForm):
