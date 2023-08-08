@@ -15,7 +15,7 @@ from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
-from web.forms.questions import CreateQuestionForm, ImportQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm, EditQuestionForm, DeleteQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -226,14 +226,15 @@ def questions_page():
     with db_session.create_session() as db:
         create_question_form = CreateQuestionForm()
         import_question_form = ImportQuestionForm()
+        edit_question_form = EditQuestionForm()
+        delete_question_form = DeleteQuestionForm()
 
         active_tab = "CREATE"
 
         groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
         create_question_form.groups.choices = groups
         import_question_form.groups.choices = groups
-
-        questions_list = db.scalars(select(Question))
+        edit_question_form.groups.choices = groups
 
         if create_question_form.create.data and create_question_form.validate():
             active_tab = "CREATE"
@@ -292,11 +293,49 @@ def questions_page():
                     "Decode error: {}".format(e))
                 db.rollback()
 
+        if edit_question_form.save.data and edit_question_form.validate():
+            question_id = int(edit_question_form.id.data)
+            selected = [int(item) for item in edit_question_form.groups.data]
+            selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected))).all()
+
+            question = db.get(Question, question_id)
+            question.text = edit_question_form.text.data
+            question.subject = edit_question_form.subject.data
+            question.options = json.dumps(edit_question_form.options.data.splitlines(), ensure_ascii=False)
+            question.answer = edit_question_form.answer.data
+            question.level = edit_question_form.level.data
+            question.article_url = edit_question_form.article.data
+            question.groups[:] = []
+            question.groups.extend(selected_groups)
+
+            db.commit()
+
+        if delete_question_form.delete.data:
+            question = db.get(Question, int(delete_question_form.id.data))
+            db.delete(question)
+            db.commit()
+
+        questions_list = []
+        for db_question in db.scalars(select(Question)):
+            question = {
+                "id": db_question.id if db_question.id is not None else '',
+                "text": db_question.text if db_question.text is not None else '',
+                "subject": db_question.subject if db_question.subject is not None else '',
+                "groups": [g.name for g in db_question.groups] if db_question.groups is not None else '',
+                "options": json.loads(db_question.options) if db_question.options is not None else '',
+                "answer": db_question.answer if db_question.answer is not None else '',
+                "level": db_question.level if db_question.level is not None else '',
+                "article": db_question.article_url if db_question.article_url is not None else '',
+            }
+            questions_list.append(question)
+
         return render_template("question.html",
                                active_tab=active_tab,
                                questions=questions_list,
                                create_question_form=create_question_form,
-                               import_question_form=import_question_form)
+                               import_question_form=import_question_form,
+                               edit_question_form=edit_question_form,
+                               delete_question_form=delete_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
