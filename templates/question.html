@@ -122,12 +122,13 @@
                     <i class="bi bi-pencil-square" style="font-size: 1rem; color: currentColor;"></i>
                 </button>
             </div>
-            <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModal"
+            <div class="modal fade" id="deleteModal" tabindex="-1"
                  aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            Delete question
+                            <h1 class="modal-title fs-5">Delete question</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <form method="POST">
@@ -137,7 +138,9 @@
                                     Are you sure, you want to delete, the question from the database permanently?
                                 </div>
                                 <div class="modal-footer">
-                                    {{ delete_question_form.delete(type="submit", class="btn btn-danger", id="delete-btn") }}
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                                    </button>
+                                    {{ delete_question_form.delete(type="submit", class="btn btn-outline-danger", id="delete-btn") }}
                                 </div>
                             </form>
                         </div>
@@ -145,12 +148,12 @@
                 </div>
             </div>
 
-            <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+            <div class="modal fade" id="editModal" tabindex="-1"
                  aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="exampleModalLabel">Editing</h1>
+                            <h1 class="modal-title fs-5">Editing</h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
