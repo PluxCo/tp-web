@@ -1,47 +1,47 @@
-let config_table = {
-    data: dataSet,
-    columns: [
-        {
-            "data": 'id',
-            title: "#"
-        },
-        {
-            "data": 'text',
-            title: "Text"
-        },
-        {
-            "data": 'subject',
-            title: "Subject"
-        },
-        {
-            "data": 'options',
-            title: "Options",
-            width: '30%'
-        },
-        {
-            "data": 'answer',
-            title: "Answer index"
-        },
-        {
-            "data": 'groups',
-            title: "Groups"
-        },
-        {
-            "data": 'level',
-            title: "Difficulty"
-        },
-        {
-            "data": 'article',
-            title: "Article",
-            render: function (data, type, row) {
-                if (row.article === "none") {
-                    return 'none'
-                }
-                return '<a href="' + row.article + '" target="_new">' + data + '</a>';
-            }
-        }
-    ],
-}
+// let config_table = {
+//     data: dataSet,
+//     columns: [
+//         {
+//             "data": 'id',
+//             title: "#"
+//         },
+//         {
+//             "data": 'text',
+//             title: "Text"
+//         },
+//         {
+//             "data": 'subject',
+//             title: "Subject"
+//         },
+//         {
+//             "data": 'options',
+//             title: "Options",
+//             width: '30%'
+//         },
+//         {
+//             "data": 'answer',
+//             title: "Answer index"
+//         },
+//         {
+//             "data": 'groups',
+//             title: "Groups"
+//         },
+//         {
+//             "data": 'level',
+//             title: "Difficulty"
+//         },
+//         {
+//             "data": 'article',
+//             title: "Article",
+//             render: function (data, type, row) {
+//                 if (row.article === "none") {
+//                     return 'none'
+//                 }
+//                 return '<a href="' + row.article + '" target="_new">' + data + '</a>';
+//             }
+//         }
+//     ],
+// }
 
 const table = new DataTable('#table', {columns: [{}, {}, {}, {width: "30%"}, {}, {}, {}, {}]});
 
@@ -72,8 +72,8 @@ table.on('click', 'tbody tr', (e) => {
     document.getElementById('question-answer').setAttribute('value', dataSet[row].answer)
     document.getElementById('question-level').setAttribute('value', dataSet[row].level)
     document.getElementById('question-article').setAttribute('value', dataSet[row].article)
-    // FIXME: Add groups selection
 
+    $("#question-groups").selectpicker("val", dataSet[row].groups[0]);
     document.getElementById('question-id-delete').setAttribute('value', dataSet[row].id)
 
 });
