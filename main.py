@@ -1,6 +1,5 @@
 import datetime
 import math
-import schedule
 
 from models import db_session
 from bot import start_bot, send_question

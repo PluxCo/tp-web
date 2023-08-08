@@ -3,7 +3,7 @@
 {% block prescripts %}
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
     <script>
-        let config = {{ config | safe}};
+        let id_to_name = {{ id_to_name | safe}};
     </script>
     <script type="module" src="{{ url_for('static', filename='index_charts.js') }}"></script>
 {% endblock %}
@@ -18,21 +18,34 @@
             <h2>People</h2>
             <div class="col-sm">
                 <ul id="PeopleList" class="list-group">
-                    {%- for person, correct, answered, all in data -%}
-                        <a href="/statistic/{{ person.id }}"
-                           class="list-group-item d-flex justify-content-between align-items-center {{ "text-secondary" if person.is_paused else "" }}">
-                            {{- person.full_name -}}
-                            {% if answered != 0 and (correct / answered) > 0.75 %}
-                                <span class="badge bg-success rounded-pill">{{- (correct / answered * 100) | round(1, 'floor') -}}%</span>
-                            {% elif answered != 0 and (correct / answered) > 0.5 %}
-                                <span class="badge bg-primary rounded-pill">{{- (correct / answered * 100) | round(1, 'floor') -}}%</span>
-                            {% elif answered != 0 and (correct / answered) > 0 %}
-                                <span class="badge bg-warning rounded-pill">{{- (correct / answered * 100) | round(1, 'floor') -}}%</span>
-                            {% elif answered != 0 or correct == 0 %}
-                                <span class="badge bg-danger rounded-pill">0 %</span>
-                            {% endif %}
-                        </a>
-                    {%- endfor -%}
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-2"></span>
+                        <span class="placeholder col-3"></span>
+                        <span class="placeholder col-3"></span>
+                    </li>
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-3"></span>
+                        <span class="placeholder col-4"></span>
+                    </li>
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-1"></span>
+                        <span class="placeholder col-6"></span>
+                        <span class="placeholder col-3"></span>
+                    </li>
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-2"></span>
+                        <span class="placeholder col-2"></span>
+                    </li>
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-4"></span>
+                        <span class="placeholder col-2"></span>
+                        <span class="placeholder col-4"></span>
+                    </li>
+                    <li class="list-group-item placeholder-glow" aria-hidden="true">
+                        <span class="placeholder col-3"></span>
+                        <span class="placeholder col-4"></span>
+                        <span class="placeholder col-2"></span>
+                    </li>
                 </ul>
             </div>
             <div class="col-sm">
