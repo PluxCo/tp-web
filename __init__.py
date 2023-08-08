@@ -4,7 +4,7 @@ import os
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 from sqlalchemy import select, func, distinct
 
 import schedule
@@ -183,6 +183,37 @@ def statistic_page(person_id):
                                AnswerState=AnswerState, subjects=subject_stat,
                                timeline=timeline,
                                pause_form=pause_form)
+
+
+@socketio.on("get_question_stat")
+def get_question_stat(data):
+    with db_session.create_session() as db:
+        res = {"question": None, "answers": []}
+
+        question = db.get(Question, data["question_id"])
+        res["question"] = question.to_dict(only=("text", "level", "groups.name", "answer"))
+        res["question"]["options"] = json.loads(question.options)
+
+        answers = db.scalars(select(QuestionAnswer).
+                             where(QuestionAnswer.person_id == data["person_id"],
+                                   QuestionAnswer.question_id == data["question_id"]).
+                             order_by(QuestionAnswer.ask_time))
+
+        for a in answers:
+            a: QuestionAnswer
+            if a.state == AnswerState.TRANSFERRED:
+                answer_state = "IGNORED"
+            elif a.state == AnswerState.NOT_ANSWERED:
+                answer_state = "NOT_ANSWERED"
+            elif a.question.answer == a.person_answer:
+                answer_state = "CORRECT"
+            else:
+                answer_state = "INCORRECT"
+
+            res["answers"].append(a.to_dict(only=("person_answer", "answer_time", "ask_time")))
+            res["answers"][-1]["state"] = answer_state
+
+    emit("question_info", res)
 
 
 @app.route("/questions", methods=["POST", "GET"])

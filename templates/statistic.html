@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 
-{% block content %}
+{% block prescripts %}
+    <script src="{{ url_for('static', filename='statistic_ext.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='statistic.css') }}">
+{% endblock %}
+
+{% block content %}
     <script>
         {%- set bar_values = [] -%}
         {%- set bar_labels = [] -%}
@@ -34,9 +38,49 @@
         }
     </script>
     <script type="module" src="{{ url_for('static', filename='charts.js') }}"></script>
+    <div class="modal" tabindex="-1" id="question_modal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="row my-1 me-3">
+                        <dt>Question</dt>
+                        <dd class="mx-3 datable q_text"></dd>
+                        <dt>Level</dt>
+                        <dd class="mx-3 datable q_level"></dd>
+                        <dt>Groups</dt>
+                        <dd class="mx-3 datable q_groups"></dd>
+                        <dt>Answer</dt>
+                        <dd class="mx-3 datable q_correct"></dd>
+                    </dl>
+                    <div class="row mb-1 me-3 table-responsive" style="max-height: 300px;">
+                        <table class="table align-middle">
+                            <thead>
+                            <tr>
+                                <th>Person answer</th>
+                                <th>Ask time</th>
+                                <th>Answer time</th>
+                            </tr>
+                            </thead>
+                            <tbody class="q_answers datable">
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-lg">
         <div class="d-flex gap-3">
-            <h2 class="{{ "text-secondary" if person.is_paused else "" }}">{{ person.full_name }}</h2>
+            <h2 class="{{ "text-secondary" if person.is_paused else "" }}" id="person"
+                data-person="{{ person.id }}">{{ person.full_name }}</h2>
             <form method="POST" action="">
                 {{ pause_form.csrf_token }}
                 {% for field, error in pause_form.errors.items() %}
@@ -60,31 +104,27 @@
                 </div>
             </div>
         </div>
-        <div class="row table-responsive" id="timeline">
-            <table class="table">
-                <tr>
-                    {% for answer in person.answers %}
+        <div class="row table-responsive rounded" id="timeline">
+            <table class="table m-0">
+                <tr class="d-flex">
+                    {% for answer in person.answers|reverse %}
                         {% if answer.state == AnswerState.ANSWERED and answer.person_answer == answer.question.answer %}
-                            <td class="text-center table-success" data-bs-toggle="modal"
-                                data-bs-target="#info_{{ answer.id }}">
-                                C
-                            </td>
+                            {% set a_bg = "table-success" %}
+                            {% set a_label = "C" %}
                         {% elif answer.state == AnswerState.ANSWERED and answer.person_answer != answer.question.answer %}
-                            <td class="text-center table-warning" data-bs-toggle="modal"
-                                data-bs-target="#info_{{ answer.id }}">
-                                I
-                            </td>
+                            {% set a_bg = "table-warning" %}
+                            {% set a_label = "I" %}
                         {% elif answer.state == AnswerState.TRANSFERRED %}
-                            <td class="text-center table-info" data-bs-toggle="modal"
-                                data-bs-target="#info_{{ answer.id }}">
-                                S
-                            </td>
+                            {% set a_bg = "table-info" %}
+                            {% set a_label = "S" %}
                         {% elif answer.state == AnswerState.NOT_ANSWERED %}
-                            <td class="text-center table-secondary" data-bs-toggle="modal"
-                                data-bs-target="#info_{{ answer.id }}">
-                                P
-                            </td>
+                            {% set a_bg = "table-secondary" %}
+                            {% set a_label = "P" %}
                         {% endif %}
+
+                        <td class="text-center {{ a_bg }} question_stat" data-question="{{ answer.question.id }}">
+                            {{ a_label }}
+                        </td>
                     {% endfor %}
                 </tr>
             </table>
@@ -119,27 +159,22 @@
                                     </tr>
                                     <tr>
                                         {% for question, state, q_correct, q_incorrect in answers %}
+                                            {% set td_ststus = "" %}
                                             {% if state == "CORRECT" %}
-                                                <td class="text-center table-success">
-                                                    <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-danger">{{ q_incorrect }}</span>
-                                                </td>
+                                                {% set td_ststus = "table-success" %}
                                             {% elif state == "INCORRECT" %}
-                                                <td class="text-center table-warning">
-                                                    <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-danger">{{ q_incorrect }}</span>
-                                                </td>
+                                                {% set td_ststus = "table-warning" %}
                                             {% elif state == "IGNORED" %}
-                                                <td class="text-center table-info">
-                                                    <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-danger">{{ q_incorrect }}</span>
-                                                </td>
+                                                {% set td_ststus = "table-info" %}
                                             {% elif state == "NOT_ANSWERED" %}
-                                                <td class="text-center table-secondary">
-                                                    <span class="text-success">{{ q_correct }}</span> /
-                                                    <span class="text-danger">{{ q_incorrect }}</span>
-                                                </td>
+                                                {% set td_ststus = "table-secondary" %}
                                             {% endif %}
+
+                                            <td class="text-center {{ td_ststus }} question_stat"
+                                                data-question="{{ question.id }}">
+                                                <span class="text-success">{{ q_correct }}</span> /
+                                                <span class="text-danger">{{ q_incorrect }}</span>
+                                            </td>
                                         {% endfor %}
                                     </tr>
                                 </table>
