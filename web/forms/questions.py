@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import SubmitField
+from wtforms import SubmitField, HiddenField
 from wtforms.fields import StringField, SelectField, IntegerField, TextAreaField, SelectMultipleField
 from wtforms.validators import DataRequired, ValidationError
 
@@ -29,3 +29,25 @@ class ImportQuestionForm(BasePrefixedForm):
     article = StringField("Article")
 
     import_btn = SubmitField("Create")
+
+
+class EditQuestionForm(BasePrefixedForm):
+    id = HiddenField("ID")
+    text = TextAreaField("Text", validators=[DataRequired()])
+    subject = StringField("Subject")
+    options = TextAreaField("Options (one per line)")
+    answer = IntegerField("Answer index")
+    groups = SelectMultipleField("Groups")
+    level = IntegerField("Difficulty", default=1)
+    article = StringField("Article")
+
+    save = SubmitField("Save")
+
+    def validate_answer(self, field):
+        if field.data < 1 or field.data > len(self.options.data.splitlines()):
+            raise ValidationError("Answer index should be from 1 to options count")
+
+
+class DeleteQuestionForm(BasePrefixedForm):
+    id = HiddenField("ID")
+    delete = SubmitField("Delete")
