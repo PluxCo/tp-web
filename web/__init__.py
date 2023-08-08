@@ -5,7 +5,7 @@ import time
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, send, emit
 from sqlalchemy import select, func, distinct
 
 import schedule
@@ -15,7 +15,7 @@ from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
-from web.forms.questions import CreateQuestionForm, ImportQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm, EditQuestionForm, DeleteQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -59,47 +59,11 @@ def main_page():
         return redirect("/login")
     with db_session.create_session() as db:
         persons = db.scalars(select(Person)).all()
-        data = []
-        timeline_correct = []
-        timeline_incorrect = []
         id_to_name = {}
         for person in persons:
             id_to_name[person.id] = person.full_name
-            all_questions = db.scalars(select(Question).
-                                       join(Question.groups).
-                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
-                                       group_by(Question.id)).all()
-            correct_count = 0
-            answered_count = 0
-            questions_count = len(all_questions)
 
-            for current_question in all_questions:
-                answers = db.scalars(select(QuestionAnswer).
-                                     where(QuestionAnswer.person_id == person.id,
-                                           QuestionAnswer.question_id == current_question.id,
-                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
-                                     order_by(QuestionAnswer.ask_time)).all()
-
-                if answers:
-                    answered_count += 1
-                    if answers[-1].question.answer == answers[-1].person_answer:
-                        correct_count += 1
-            data.append((person, correct_count, answered_count, questions_count))
-
-        all_correct_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
-        all_incorrect_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
-        for answer in all_correct_answers:
-            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
-        for answer in all_incorrect_answers:
-            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
-
-        config = {"timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
-                  "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
-                  "id_to_name": id_to_name}
-
-    return render_template("index.html", data=data, config=json.dumps(config, ensure_ascii=False))
+    return render_template("index.html", id_to_name=json.dumps(id_to_name, ensure_ascii=False))
 
 
 # noinspection PyTypeChecker
@@ -226,14 +190,15 @@ def questions_page():
     with db_session.create_session() as db:
         create_question_form = CreateQuestionForm()
         import_question_form = ImportQuestionForm()
+        edit_question_form = EditQuestionForm()
+        delete_question_form = DeleteQuestionForm()
 
         active_tab = "CREATE"
 
         groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
         create_question_form.groups.choices = groups
         import_question_form.groups.choices = groups
-
-        questions_list = db.scalars(select(Question))
+        edit_question_form.groups.choices = groups
 
         if create_question_form.create.data and create_question_form.validate():
             active_tab = "CREATE"
@@ -292,11 +257,49 @@ def questions_page():
                     "Decode error: {}".format(e))
                 db.rollback()
 
+        if edit_question_form.save.data and edit_question_form.validate():
+            question_id = int(edit_question_form.id.data)
+            selected = [int(item) for item in edit_question_form.groups.data]
+            selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected))).all()
+
+            question = db.get(Question, question_id)
+            question.text = edit_question_form.text.data
+            question.subject = edit_question_form.subject.data
+            question.options = json.dumps(edit_question_form.options.data.splitlines(), ensure_ascii=False)
+            question.answer = edit_question_form.answer.data
+            question.level = edit_question_form.level.data
+            question.article_url = edit_question_form.article.data
+            question.groups[:] = []
+            question.groups.extend(selected_groups)
+
+            db.commit()
+
+        if delete_question_form.delete.data:
+            question = db.get(Question, int(delete_question_form.id.data))
+            db.delete(question)
+            db.commit()
+
+        questions_list = []
+        for db_question in db.scalars(select(Question)):
+            question = {
+                "id": db_question.id if db_question.id is not None else '',
+                "text": db_question.text if db_question.text is not None else '',
+                "subject": db_question.subject if db_question.subject is not None else '',
+                "groups": [g.name for g in db_question.groups] if db_question.groups is not None else '',
+                "options": json.loads(db_question.options) if db_question.options is not None else '',
+                "answer": db_question.answer if db_question.answer is not None else '',
+                "level": db_question.level if db_question.level is not None else '',
+                "article": db_question.article_url if db_question.article_url is not None else '',
+            }
+            questions_list.append(question)
+
         return render_template("question.html",
                                active_tab=active_tab,
                                questions=questions_list,
                                create_question_form=create_question_form,
-                               import_question_form=import_question_form)
+                               import_question_form=import_question_form,
+                               edit_question_form=edit_question_form,
+                               delete_question_form=delete_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
@@ -337,3 +340,63 @@ def settings_page():
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
                            tg_settings_form=tg_settings_form)
+
+
+@socketio.on('index_connected')
+def peopleList():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        for person in persons:
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
+
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
+
+                if answers:
+                    answered_count += 1
+                    if answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+
+            emit('peopleList', json.dumps(
+                {"person": {"id": person.id, "full_name": person.full_name},
+                 "correct_count": correct_count,
+                 "answered_count": answered_count,
+                 "questions_count": questions_count},
+                ensure_ascii=False))
+
+
+@socketio.on('index_connected_timeline')
+def timeline():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        timeline_correct = []
+        timeline_incorrect = []
+        id_to_name = {}
+        for person in persons:
+            id_to_name[person.id] = person.full_name
+
+        all_correct_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
+        all_incorrect_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
+
+        for answer in all_correct_answers:
+            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
+        for answer in all_incorrect_answers:
+            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
+
+        config = {
+            "timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
+            "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
+        }
+        emit('timeline', json.dumps(config))
