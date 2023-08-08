@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -14,7 +15,7 @@ from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
-from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm, EditQuestionForm, DeleteQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -58,47 +59,11 @@ def main_page():
         return redirect("/login")
     with db_session.create_session() as db:
         persons = db.scalars(select(Person)).all()
-        data = []
-        timeline_correct = []
-        timeline_incorrect = []
         id_to_name = {}
         for person in persons:
             id_to_name[person.id] = person.full_name
-            all_questions = db.scalars(select(Question).
-                                       join(Question.groups).
-                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
-                                       group_by(Question.id)).all()
-            correct_count = 0
-            answered_count = 0
-            questions_count = len(all_questions)
 
-            for current_question in all_questions:
-                answers = db.scalars(select(QuestionAnswer).
-                                     where(QuestionAnswer.person_id == person.id,
-                                           QuestionAnswer.question_id == current_question.id,
-                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
-                                     order_by(QuestionAnswer.ask_time)).all()
-
-                if answers:
-                    answered_count += 1
-                    if answers[-1].question.answer == answers[-1].person_answer:
-                        correct_count += 1
-            data.append((person, correct_count, answered_count, questions_count))
-
-        all_correct_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
-        all_incorrect_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
-        for answer in all_correct_answers:
-            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
-        for answer in all_incorrect_answers:
-            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
-
-        config = {"timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
-                  "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
-                  "id_to_name": id_to_name}
-
-    return render_template("index.html", data=data, config=json.dumps(config, ensure_ascii=False))
+    return render_template("index.html", id_to_name=json.dumps(id_to_name, ensure_ascii=False))
 
 
 # noinspection PyTypeChecker
@@ -115,6 +80,7 @@ def statistic_page(person_id):
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
                                      where(PersonGroup.id.in_(pg.id for pg in person.groups)))
         subject_stat = []
+        bar_stat = [[], [], []]
         timeline = []
 
         if pause_form.pause.data and pause_form.validate():
@@ -140,7 +106,9 @@ def statistic_page(person_id):
                                        group_by(Question.id)).all()
 
             correct_count = 0
+            correct_count_by_level = {}
             answered_count = 0
+            answered_count_by_level = {}
             questions_count = len(all_questions)
             person_answers = []
 
@@ -157,10 +125,18 @@ def statistic_page(person_id):
                 answer_state = "NOT_ANSWERED"
                 if answers:
                     answered_count += 1
+
+                    if answers[-1].question.level not in answered_count_by_level.keys():
+                        answered_count_by_level[answers[-1].question.level] = 0
+                        correct_count_by_level[answers[-1].question.level] = 0
+
+                    answered_count_by_level[answers[-1].question.level] += 1
+
                     if answers[-1].state == AnswerState.TRANSFERRED:
                         answer_state = "IGNORED"
                     elif answers[-1].question.answer == answers[-1].person_answer:
                         correct_count += 1
+                        correct_count_by_level[answers[-1].question.level] += 1
                         answer_state = "CORRECT"
                     else:
                         answer_state = "INCORRECT"
@@ -169,7 +145,30 @@ def statistic_page(person_id):
                                        question_correct_count, question_incorrect_count))
 
             subject_stat.append((name, correct_count, answered_count, questions_count, person_answers))
+            progress_by_level = {}
 
+            for level in answered_count_by_level:
+                progress_by_level[level] = round(correct_count_by_level[level] / answered_count_by_level[level] * 100,
+                                                 1)
+
+            bar_stat[0].append(name)
+            bar_stat[1].append(progress_by_level)
+            if progress_by_level:
+                bar_stat[2].append(max(progress_by_level, key=progress_by_level.get))
+        if bar_stat[2]:
+            max_level = max(bar_stat[2])
+        else:
+            max_level = 0
+        progress_by_level = []
+        for i in range(0, max_level):
+            progress_by_level.append([])
+            for j in range(len(bar_stat[1])):
+                if (i + 1) in bar_stat[1][j].keys():
+                    progress_by_level[i].append(bar_stat[1][j][i + 1])
+                else:
+                    progress_by_level[i].append(0)
+
+        bar_data = [bar_stat[0], progress_by_level, max_level]
         for check_time in [datetime.datetime.now() + datetime.timedelta(x / 3) for x in range(-120, 1)]:
             correct_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
@@ -184,7 +183,7 @@ def statistic_page(person_id):
             ignored_questions_amount = db.scalar(
                 select(func.count(QuestionAnswer.id)).join(Question).where(QuestionAnswer.person_id == person_id,
                                                                            QuestionAnswer.ask_time <= check_time,
-                                                                           QuestionAnswer.state != AnswerState.ANSWERED,
+                                                                           QuestionAnswer.state == AnswerState.TRANSFERRED,
                                                                            QuestionAnswer.person_answer == None))
 
             timeline.append((check_time.timestamp() * 1000, correct_questions_amount, incorrect_questions_amount,
@@ -192,7 +191,7 @@ def statistic_page(person_id):
 
         return render_template("statistic.html", person=person,
                                AnswerState=AnswerState, subjects=subject_stat,
-                               timeline=timeline,
+                               timeline=timeline, bar_data=json.dumps(bar_data, ensure_ascii=False),
                                pause_form=pause_form, plan_form=plan_form)
 
 
@@ -233,14 +232,15 @@ def questions_page():
     with db_session.create_session() as db:
         create_question_form = CreateQuestionForm()
         import_question_form = ImportQuestionForm()
+        edit_question_form = EditQuestionForm()
+        delete_question_form = DeleteQuestionForm()
 
         active_tab = "CREATE"
 
         groups = [(str(item.id), item.name) for item in db.scalars(select(PersonGroup))]
         create_question_form.groups.choices = groups
         import_question_form.groups.choices = groups
-
-        questions_list = db.scalars(select(Question))
+        edit_question_form.groups.choices = groups
 
         if create_question_form.create.data and create_question_form.validate():
             active_tab = "CREATE"
@@ -299,11 +299,49 @@ def questions_page():
                     "Decode error: {}".format(e))
                 db.rollback()
 
+        if edit_question_form.save.data and edit_question_form.validate():
+            question_id = int(edit_question_form.id.data)
+            selected = [int(item) for item in edit_question_form.groups.data]
+            selected_groups = db.scalars(select(PersonGroup).where(PersonGroup.id.in_(selected))).all()
+
+            question = db.get(Question, question_id)
+            question.text = edit_question_form.text.data
+            question.subject = edit_question_form.subject.data
+            question.options = json.dumps(edit_question_form.options.data.splitlines(), ensure_ascii=False)
+            question.answer = edit_question_form.answer.data
+            question.level = edit_question_form.level.data
+            question.article_url = edit_question_form.article.data
+            question.groups[:] = []
+            question.groups.extend(selected_groups)
+
+            db.commit()
+
+        if delete_question_form.delete.data:
+            question = db.get(Question, int(delete_question_form.id.data))
+            db.delete(question)
+            db.commit()
+
+        questions_list = []
+        for db_question in db.scalars(select(Question)):
+            question = {
+                "id": db_question.id if db_question.id is not None else '',
+                "text": db_question.text if db_question.text is not None else '',
+                "subject": db_question.subject if db_question.subject is not None else '',
+                "groups": [g.name for g in db_question.groups] if db_question.groups is not None else '',
+                "options": json.loads(db_question.options) if db_question.options is not None else '',
+                "answer": db_question.answer if db_question.answer is not None else '',
+                "level": db_question.level if db_question.level is not None else '',
+                "article": db_question.article_url if db_question.article_url is not None else '',
+            }
+            questions_list.append(question)
+
         return render_template("question.html",
                                active_tab=active_tab,
                                questions=questions_list,
                                create_question_form=create_question_form,
-                               import_question_form=import_question_form)
+                               import_question_form=import_question_form,
+                               edit_question_form=edit_question_form,
+                               delete_question_form=delete_question_form)
 
 
 @app.route("/settings", methods=["POST", "GET"])
@@ -344,3 +382,63 @@ def settings_page():
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
                            tg_settings_form=tg_settings_form)
+
+
+@socketio.on('index_connected')
+def peopleList():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        for person in persons:
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
+
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
+
+                if answers:
+                    answered_count += 1
+                    if answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+
+            emit('peopleList', json.dumps(
+                {"person": {"id": person.id, "full_name": person.full_name},
+                 "correct_count": correct_count,
+                 "answered_count": answered_count,
+                 "questions_count": questions_count},
+                ensure_ascii=False))
+
+
+@socketio.on('index_connected_timeline')
+def timeline():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        timeline_correct = []
+        timeline_incorrect = []
+        id_to_name = {}
+        for person in persons:
+            id_to_name[person.id] = person.full_name
+
+        all_correct_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
+        all_incorrect_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
+
+        for answer in all_correct_answers:
+            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
+        for answer in all_incorrect_answers:
+            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
+
+        config = {
+            "timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
+            "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
+        }
+        emit('timeline', json.dumps(config))
