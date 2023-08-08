@@ -1,3 +1,43 @@
+let socket = io();
+socket.on('connect', function () {
+    socket.emit('index_connected_timeline');
+    socket.emit('index_connected');
+});
+
+socket.on('peopleList', function (json_data) {
+    let items = document.getElementsByClassName('placeholder-glow');
+    for (const item of items) {
+        item.remove();
+    }
+
+    let list = document.getElementById('PeopleList');
+    let data = JSON.parse(json_data)
+    let textSecondary = ""
+    if (data.person.is_paused) {
+        textSecondary += "\"text-secondary\""
+    }
+    let badge = ""
+    if (data.answered_count !== 0) {
+        if ((data.correct_count / data.answered_count) > 0.75) {
+            badge += "<span class=\"badge bg-success rounded-pill\">" + Math.round((data.correct_count / data.answered_count) * 1000) / 10 + "%</span>"
+        } else if ((data.correct_count / data.answered_count) > 0.5) {
+            badge += "<span class=\"badge bg-primary rounded-pill\">" + Math.round((data.correct_count / data.answered_count) * 1000) / 10 + "%</span>"
+        } else if ((data.correct_count / data.answered_count) > 0) {
+            badge += "<span class=\"badge bg-warning rounded-pill\">" + Math.round((data.correct_count / data.answered_count) * 1000) / 10 + "%</span>"
+        }
+    } else {
+        badge += "<span class=\"badge bg-danger rounded-pill\">0 %</span>"
+    }
+    list.innerHTML += "<a href=\"/statistic/" + data.person.id + "\"" + "class=\"list-group-item d-flex justify-content-between align-items-center " +
+        textSecondary + "\">" + data.person.full_name + badge + "</a>";
+})
+
+socket.on('timeline', function (json_data) {
+    let data = JSON.parse(json_data);
+    bubble_chart.data.datasets[0].data = data.timeline_data_correct;
+    bubble_chart.data.datasets[1].data = data.timeline_data_incorrect;
+    bubble_chart.update();
+})
 const bubble_chart_canvas = document.getElementById('TimeLine');
 
 const bubble_chart = new Chart(
@@ -8,7 +48,7 @@ const bubble_chart = new Chart(
             datasets: [
                 {
                     label: 'Questions answered correctly',
-                    data: config.timeline_data_correct,
+                    data: [],
                     backgroundColor: "rgba(123,185,72,0.2)",
                     borderColor: "rgb(122,204,81)",
                     hoverBackgroundColor: "rgba(138,196,76,0.4)",
@@ -16,7 +56,7 @@ const bubble_chart = new Chart(
                 },
                 {
                     label: 'Questions answered incorrectly',
-                    data: config.timeline_data_incorrect,
+                    data: [],
                     backgroundColor: "rgba(185,72,72,0.2)",
                     borderColor: "rgb(204,81,81)",
                     hoverBackgroundColor: "rgba(196,76,76,0.4)",
@@ -62,7 +102,7 @@ const bubble_chart = new Chart(
                             let date = new Date(context.parsed.x).toString().split(' ')
                             let label = date[1] + ' ' + date[2] + ': '
                             if (context.parsed.y !== null) {
-                                label += config.id_to_name[context.parsed.y];
+                                label += id_to_name[context.parsed.y];
                             }
                             return label;
                         }
@@ -95,8 +135,6 @@ bubble_chart_canvas.ondblclick = (evt) => {
 };
 
 bubble_chart_canvas.onclick = (evt) => {
-    console.log(evt, 'chartjs')
-
     const res = bubble_chart.getElementsAtEventForMode(evt, 'nearest', {intersect: true}, true);
 
     if (res.length === 0) {
