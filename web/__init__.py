@@ -5,7 +5,7 @@ import time
 
 from flask import Flask, redirect, render_template
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, send, emit
 from sqlalchemy import select, func, distinct
 
 import schedule
@@ -59,47 +59,11 @@ def main_page():
         return redirect("/login")
     with db_session.create_session() as db:
         persons = db.scalars(select(Person)).all()
-        data = []
-        timeline_correct = []
-        timeline_incorrect = []
         id_to_name = {}
         for person in persons:
             id_to_name[person.id] = person.full_name
-            all_questions = db.scalars(select(Question).
-                                       join(Question.groups).
-                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
-                                       group_by(Question.id)).all()
-            correct_count = 0
-            answered_count = 0
-            questions_count = len(all_questions)
 
-            for current_question in all_questions:
-                answers = db.scalars(select(QuestionAnswer).
-                                     where(QuestionAnswer.person_id == person.id,
-                                           QuestionAnswer.question_id == current_question.id,
-                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
-                                     order_by(QuestionAnswer.ask_time)).all()
-
-                if answers:
-                    answered_count += 1
-                    if answers[-1].question.answer == answers[-1].person_answer:
-                        correct_count += 1
-            data.append((person, correct_count, answered_count, questions_count))
-
-        all_correct_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
-        all_incorrect_answers = db.scalars(
-            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
-        for answer in all_correct_answers:
-            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
-        for answer in all_incorrect_answers:
-            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
-
-        config = {"timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
-                  "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
-                  "id_to_name": id_to_name}
-
-    return render_template("index.html", data=data, config=json.dumps(config, ensure_ascii=False))
+    return render_template("index.html", id_to_name=json.dumps(id_to_name, ensure_ascii=False))
 
 
 # noinspection PyTypeChecker
@@ -376,3 +340,63 @@ def settings_page():
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
                            tg_settings_form=tg_settings_form)
+
+
+@socketio.on('index_connected')
+def peopleList():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        for person in persons:
+            all_questions = db.scalars(select(Question).
+                                       join(Question.groups).
+                                       where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                                       group_by(Question.id)).all()
+            correct_count = 0
+            answered_count = 0
+            questions_count = len(all_questions)
+
+            for current_question in all_questions:
+                answers = db.scalars(select(QuestionAnswer).
+                                     where(QuestionAnswer.person_id == person.id,
+                                           QuestionAnswer.question_id == current_question.id,
+                                           QuestionAnswer.state != AnswerState.NOT_ANSWERED).
+                                     order_by(QuestionAnswer.ask_time)).all()
+
+                if answers:
+                    answered_count += 1
+                    if answers[-1].question.answer == answers[-1].person_answer:
+                        correct_count += 1
+
+            emit('peopleList', json.dumps(
+                {"person": {"id": person.id, "full_name": person.full_name},
+                 "correct_count": correct_count,
+                 "answered_count": answered_count,
+                 "questions_count": questions_count},
+                ensure_ascii=False))
+
+
+@socketio.on('index_connected_timeline')
+def timeline():
+    with db_session.create_session() as db:
+        persons = db.scalars(select(Person)).all()
+        timeline_correct = []
+        timeline_incorrect = []
+        id_to_name = {}
+        for person in persons:
+            id_to_name[person.id] = person.full_name
+
+        all_correct_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer == Question.answer)).all()
+        all_incorrect_answers = db.scalars(
+            select(QuestionAnswer).join(Question).where(QuestionAnswer.person_answer != Question.answer)).all()
+
+        for answer in all_correct_answers:
+            timeline_correct.append((answer.answer_time.timestamp() * 1000, answer.person_id, 5))
+        for answer in all_incorrect_answers:
+            timeline_incorrect.append((answer.answer_time.timestamp() * 1000, answer.person_id, 3))
+
+        config = {
+            "timeline_data_correct": [{"x": x, "y": y, "r": r} for x, y, r in timeline_correct],
+            "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
+        }
+        emit('timeline', json.dumps(config))
