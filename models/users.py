@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, ARRAY, Table
 from sqlalchemy.orm import relationship, mapped_column
+from sqlalchemy_serializer import SerializerMixin
 
 from .db_session import SqlAlchemyBase
 
@@ -12,7 +13,7 @@ class PersonGroupAssociation(SqlAlchemyBase):
     target_level = Column(Integer)
 
 
-class PersonGroup(SqlAlchemyBase):
+class PersonGroup(SqlAlchemyBase, SerializerMixin):
     __tablename__ = "person_groups"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

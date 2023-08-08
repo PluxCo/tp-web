@@ -11,3 +11,16 @@
 .chart-container {
     height: 20rem;
 }
+
+body.modal-open {
+    overflow: hidden;
+}
+
+#timeline {
+    direction: rtl;
+}
+
+#timeline td {
+    width: 3rem;
+}
+

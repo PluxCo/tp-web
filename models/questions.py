@@ -2,6 +2,7 @@ import enum
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, DateTime, Enum, Table
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy_serializer import SerializerMixin
 
 from .db_session import SqlAlchemyBase
 from .users import PersonGroup, Person
@@ -20,7 +21,7 @@ class QuestionGroupAssociation(SqlAlchemyBase):
     group_id = Column(ForeignKey("person_groups.id"), primary_key=True)
 
 
-class Question(SqlAlchemyBase):
+class Question(SqlAlchemyBase, SerializerMixin):
     __tablename__ = "questions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -33,7 +34,7 @@ class Question(SqlAlchemyBase):
     article_url = Column(String)
 
 
-class QuestionAnswer(SqlAlchemyBase):
+class QuestionAnswer(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'answers'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
