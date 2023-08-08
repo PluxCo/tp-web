@@ -69,8 +69,28 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="row">
+                        <div class="collapse" id="plan_form">
+                            <form method="POST" action="" class="">
+                                {{ plan_form.csrf_token }}
+                                <div class="d-flex gap-1">
+                                    {{ plan_form.question_id(class_="form-control d-none") }}
+                                    {{ plan_form.person_id(class_="form-control d-none") }}
+
+                                    {{ plan_form.ask_time.label(class_="form-label") }}
+                                    {{ plan_form.ask_time(class_="form-control") }}
+
+                                    {{ plan_form.plan(class_="btn btn-success float-end") }}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#plan_form" aria-expanded="false">
+                        Plan question
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -78,6 +98,15 @@
     </div>
 
     <div class="container-lg">
+        {% if plan_form.errors.items() %}
+            <div class="row">
+                {% for field, error in plan_form.errors.items() %}
+                    <div class="alert alert-warning">
+                        {{ field }}: {{ "\n".join(error) }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <div class="d-flex gap-3">
             <h2 class="{{ "text-secondary" if person.is_paused else "" }}" id="person"
                 data-person="{{ person.id }}">{{ person.full_name }}</h2>
