@@ -3,8 +3,7 @@
 {% block prescripts %}
     <link href="https://cdn.datatables.net/v/bs5/dt-1.13.6/af-2.6.0/sl-1.7.0/datatables.min.css" rel="stylesheet">
     <script>
-        let dataSet =
-        {{ questions | safe }}
+        let dataSet = {{ questions | safe }};
     </script>
 
 {% endblock %}
@@ -226,7 +225,7 @@
                             </ol>
                         </td>
                         <td>{{ q.answer }}</td>
-                        <td>{% for item in q.groups %}{{ item }}{% if not loop.last %},
+                        <td>{% for item in q.groups[1] %}{{ item }}{% if not loop.last %},
                         {% endif %}{% endfor %}</td>
                         <td>{{ q.level }}</td>
                         <td>
