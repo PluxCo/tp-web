@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, ARRAY, Table
-from sqlalchemy.orm import relationship, mapped_column
+from typing import List
+
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy_serializer import SerializerMixin
 
 from .db_session import SqlAlchemyBase
@@ -8,23 +10,23 @@ from .db_session import SqlAlchemyBase
 class PersonGroupAssociation(SqlAlchemyBase):
     __tablename__ = "person_to_group"
 
-    person_id = Column(ForeignKey("persons.id"), primary_key=True)
-    group_id = Column(ForeignKey("person_groups.id"), primary_key=True)
-    target_level = Column(Integer)
+    person_id: Mapped[int] = mapped_column(ForeignKey("persons.id"), primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("person_groups.id"), primary_key=True)
+    target_level: Mapped[int]
 
 
 class PersonGroup(SqlAlchemyBase, SerializerMixin):
     __tablename__ = "person_groups"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(unique=True)
 
 
 class Person(SqlAlchemyBase):
     __tablename__ = 'persons'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    full_name = Column(String)
-    groups = relationship("PersonGroup", secondary="person_to_group")
-    is_paused = Column(Boolean, default=False)
-    tg_id = Column(Integer, unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    full_name: Mapped[str]
+    groups: Mapped[List["PersonGroup"]] = relationship(secondary="person_to_group")
+    is_paused: Mapped[bool] = mapped_column(default=False)
+    tg_id: Mapped[int] = mapped_column(unique=True)

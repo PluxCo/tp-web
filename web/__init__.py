@@ -15,7 +15,8 @@ from models.questions import QuestionAnswer, Question, AnswerState
 from models.users import Person, PersonGroup
 
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
-from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm, EditQuestionForm, DeleteQuestionForm
+from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm, EditQuestionForm, \
+    DeleteQuestionForm
 from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
 
 app = Flask(__name__)
@@ -95,6 +96,7 @@ def statistic_page(person_id):
                                         question_id=plan_form.question_id.data,
                                         ask_time=plan_form.ask_time.data,
                                         state=AnswerState.NOT_ANSWERED)
+
             db.add(new_answer)
             db.commit()
 
@@ -327,7 +329,8 @@ def questions_page():
                 "id": db_question.id if db_question.id is not None else '',
                 "text": db_question.text if db_question.text is not None else '',
                 "subject": db_question.subject if db_question.subject is not None else '',
-                "groups": [g.name for g in db_question.groups] if db_question.groups is not None else '',
+                "groups": [[str(g.id) for g in db_question.groups],
+                           [g.name for g in db_question.groups]] if db_question.groups is not None else '',
                 "options": json.loads(db_question.options) if db_question.options is not None else '',
                 "answer": db_question.answer if db_question.answer is not None else '',
                 "level": db_question.level if db_question.level is not None else '',
