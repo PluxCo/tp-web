@@ -2,10 +2,6 @@
 
 {% block prescripts %}
     <link href="https://cdn.datatables.net/v/bs5/dt-1.13.6/af-2.6.0/sl-1.7.0/datatables.min.css" rel="stylesheet">
-    <script>
-        let dataSet = {{ questions | tojson | safe }};
-    </script>
-
 {% endblock %}
 
 {% block content %}
