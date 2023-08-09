@@ -1,5 +1,5 @@
 const table = new DataTable('#table', {
-    ajax: '/test',
+    ajax: '/questions_ajax',
     processing: true,
     serverSide: true,
     columns: [{}, {}, {}, {width: "30%"}, {}, {orderable: false}, {}, {}]

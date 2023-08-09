@@ -230,6 +230,53 @@ def get_question_stat(data):
     emit("question_info", res)
 
 
+@app.route("/questions_ajax")
+def questions_ajax():
+    args = request.args
+    res = {
+        "draw": args["draw"],
+        "recordsTotal": 0,
+        "recordsFiltered": 0,
+        "data": []
+    }
+
+    length = int(args["length"])
+    offset = int(args["start"])
+
+    orders = [Question.id, Question.text, Question.subject, Question.options, Question.answer, Question.id,
+              Question.level, Question.article_url]
+
+    cur_order = orders[int(args["order[0][column]"])]
+    if args["order[0][dir]"] != "asc":
+        cur_order = cur_order.desc()
+
+    with db_session.create_session() as db:
+        res["recordsTotal"] = db.scalar(func.count(Question.id))
+
+        questions = db.scalars(select(Question).
+                               where(or_(Question.text.ilike(f"%{args['search[value]']}%"),
+                                         Question.subject.ilike(f"%{args['search[value]']}%"),
+                                         Question.options.ilike(f"%{args['search[value]']}%"),
+                                         Question.level.ilike(f"%{args['search[value]']}%"),
+                                         Question.article_url.ilike(f"%{args['search[value]']}%"))).
+                               order_by(cur_order)).all()
+
+        res["recordsFiltered"] = len(questions)
+
+        if offset + length < len(questions):
+            questions = questions[offset:offset + length]
+        else:
+            questions = questions[offset:]
+
+        for q in questions:
+            q: Question
+            options = "<ol>" + "".join(f"<li>{option}</li>" for option in json.loads(q.options)) + "</ol>"
+            groups = ", ".join(g.name for g in q.groups)
+            res["data"].append((q.id, q.text, q.subject, options, q.answer, groups, q.level, q.article_url))
+
+    return jsonify(res)
+
+
 @app.route("/questions", methods=["POST", "GET"])
 @login_required
 def questions_page():
@@ -320,10 +367,14 @@ def questions_page():
 
             db.commit()
 
+            return redirect("/questions")
+
         if delete_question_form.delete.data:
             question = db.get(Question, int(delete_question_form.id.data))
             db.delete(question)
             db.commit()
+
+            return redirect("/settings")
 
         return render_template("question.html",
                                active_tab=active_tab,
@@ -431,50 +482,3 @@ def timeline():
             "timeline_data_incorrect": [{"x": x, "y": y, "r": r} for x, y, r in timeline_incorrect],
         }
         emit('timeline', json.dumps(config))
-
-
-@app.route("/test", methods=["GET", "POST"])
-def test_ajax():
-    args = request.args
-    res = {
-        "draw": args["draw"],
-        "recordsTotal": 0,
-        "recordsFiltered": 0,
-        "data": []
-    }
-
-    length = int(args["length"])
-    offset = int(args["start"])
-
-    orders = [Question.id, Question.text, Question.subject, Question.options, Question.answer, Question.id,
-              Question.level, Question.article_url]
-
-    cur_order = orders[int(args["order[0][column]"])]
-    if args["order[0][dir]"] != "asc":
-        cur_order = cur_order.desc()
-
-    with db_session.create_session() as db:
-        res["recordsTotal"] = db.scalar(func.count(Question.id))
-
-        questions = db.scalars(select(Question).
-                               where(or_(Question.text.ilike(f"%{args['search[value]']}%"),
-                                         Question.subject.ilike(f"%{args['search[value]']}%"),
-                                         Question.options.ilike(f"%{args['search[value]']}%"),
-                                         Question.level.ilike(f"%{args['search[value]']}%"),
-                                         Question.article_url.ilike(f"%{args['search[value]']}%"))).
-                               order_by(cur_order)).all()
-
-        res["recordsFiltered"] = len(questions)
-
-        if offset + length < len(questions):
-            questions = questions[offset:offset + length]
-        else:
-            questions = questions[offset:]
-
-        for q in questions:
-            q: Question
-            options = "<ol>" + "".join(f"<li>{option}</li>" for option in json.loads(q.options)) + "</ol>"
-            groups = ", ".join(g.name for g in q.groups)
-            res["data"].append((q.id, q.text, q.subject, options, q.answer, groups, q.level, q.article_url))
-
-    return jsonify(res)
