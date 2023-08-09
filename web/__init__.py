@@ -75,7 +75,7 @@ def statistic_page(person_id):
         pause_form = PausePersonForm()
         person = db.get(Person, person_id)
 
-        plan_form = PlanQuestionForm(ask_time=datetime.datetime.now() + tools.Settings()["time_period"],
+        plan_form = PlanQuestionForm(ask_time=datetime.datetime.now(),
                                      person_id=person.id)
 
         person_subjects = db.scalars(select(distinct(Question.subject)).join(Question.groups).
