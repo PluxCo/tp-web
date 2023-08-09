@@ -6,7 +6,7 @@ window.onload = function () {
         question_stat.addEventListener("click", function (event) {
             document.querySelector("#question_modal").querySelectorAll(".datable").forEach(function (datable) {
                 datable.innerHTML = "";
-                datable.classList.add("placeholder-glow", "col-5");
+                datable.classList.add("placeholder", "col-5");
             });
             bootstrap.Modal.getInstance("#question_modal").show();
 
@@ -52,7 +52,7 @@ socket.on("question_info", function (data) {
     });
 
     modal.querySelectorAll(".datable").forEach(function (datable) {
-        datable.classList.remove("placeholder-glow", "col-5");
+        datable.classList.remove("placeholder", "col-5");
     });
 
     console.log(data);
