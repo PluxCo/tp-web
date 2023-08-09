@@ -51,37 +51,39 @@ table.on('click', 'tbody tr', (e) => {
 
     if (classList.contains('selected')) {
         classList.remove('selected');
-        document.getElementById('edit_button').setAttribute('disabled', '');
-        document.getElementById('delete_button').setAttribute('disabled', '');
+        document.getElementById('edit_button').disabled = true;
+        document.getElementById('delete_button').disabled = true;
     } else {
         table.rows('.selected').nodes().each((row) => row.classList.remove('selected'));
         classList.add('selected');
-        document.getElementById('edit_button').removeAttribute('disabled');
-        document.getElementById('delete_button').removeAttribute('disabled');
+        document.getElementById('edit_button').disabled = false;
+        document.getElementById('delete_button').disabled = false;
     }
-
-    let row = table.rows('.selected')[0][0]
-    let formated_options = ""
-    for (const option of dataSet[row].options) {
-        formated_options += option + "\n";
-    }
-    document.getElementById('question-id').setAttribute('value', dataSet[row].id)
-    document.getElementById('question-text').textContent = dataSet[row].text
-    document.getElementById('question-subject').setAttribute('value', dataSet[row].subject)
-    document.getElementById('question-options').textContent = formated_options
-    document.getElementById('question-answer').setAttribute('value', dataSet[row].answer)
-    document.getElementById('question-level').setAttribute('value', dataSet[row].level)
-    document.getElementById('question-article').setAttribute('value', dataSet[row].article)
-
-    $("#question-groups").selectpicker("val", dataSet[row].groups[0]);
-    document.getElementById('question-id-delete').setAttribute('value', dataSet[row].id)
-
+    let row_id = table.rows('.selected')[0][0];
+    document.getElementById('question-id-delete').value = dataSet[row_id].id;
 });
 
 document.querySelector('#delete-btn').addEventListener('click', function () {
-    table.row('.selected').remove().draw(false);
+    let row = table.rows('.selected');
+    row.remove().draw(false);
     const id = table.rows('.selected').nodes()[0].cells[0].innerText;
 
-    document.getElementById('edit_button').setAttribute('disabled', '');
-    document.getElementById('delete_button').setAttribute('disabled', '');
+    document.getElementById('edit_button').disabled = true;
+    document.getElementById('delete_button').disabled = true;
 });
+
+document.querySelector('#edit_button').addEventListener('click', function () {
+    let row_id = table.rows('.selected')[0][0]
+    let formated_options = ""
+    for (const option of dataSet[row_id].options) {
+        formated_options += option + "\n";
+    }
+    document.getElementById('question-id').value = dataSet[row_id].id
+    document.getElementById('question-text').value = dataSet[row_id].text
+    document.getElementById('question-subject').value = dataSet[row_id].subject
+    document.getElementById('question-options').value = formated_options
+    document.getElementById('question-answer').value = dataSet[row_id].answer
+    document.getElementById('question-level').value = dataSet[row_id].level
+    document.getElementById('question-article').value = dataSet[row_id].article
+    $("#question-groups").selectpicker("val", dataSet[row_id].groups[0]);
+})

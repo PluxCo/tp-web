@@ -6,9 +6,9 @@ socket.on('connect', function () {
 
 socket.on('peopleList', function (json_data) {
     let items = document.getElementsByClassName('placeholder-glow');
-    for (const item of items) {
+    Array.from(items).forEach(function (item) {
         item.remove();
-    }
+    });
 
     let list = document.getElementById('PeopleList');
     let data = JSON.parse(json_data)
