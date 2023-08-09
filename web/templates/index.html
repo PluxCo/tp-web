@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block prescripts %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
     <script>
         let id_to_name = {{ id_to_name | safe}};
     </script>

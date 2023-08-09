@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block prescripts %}
-    <script src="{{ url_for('static', filename='statistic_ext.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='statistic.css') }}">
     <script>
         config = {
@@ -83,7 +82,7 @@
             </div>
         {% endif %}
         <div class="d-flex gap-3">
-            <h2 class="{{ "text-secondary" if person.is_paused else "" }}" id="person"
+            <h2 class="{{ "text-secondary" if person.is_paused else "" }} mt-3" id="person"
                 data-person="{{ person.id }}">{{ person.full_name }}</h2>
             <form method="POST" action="">
                 {{ pause_form.csrf_token }}
@@ -130,7 +129,7 @@
                 </div>
             </div>
         </div>
-        <div class="row table-responsive rounded" id="timeline">
+        <div class="row table-responsive rounded mb-3" id="timeline">
             <table class="table m-0">
                 <tr class="d-flex">
                     {% for answer in person.answers|reverse %}

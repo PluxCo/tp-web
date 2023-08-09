@@ -44,7 +44,7 @@ def login_page():
         else:
             error = "Incorrect password"
 
-    return render_template("login.html", form=login_form, error_msg=error)
+    return render_template("login.html", form=login_form, error_msg=error, title="Login")
 
 
 @app.route("/logout", methods=["POST", "GET"])
@@ -64,7 +64,7 @@ def main_page():
         for person in persons:
             id_to_name[person.id] = person.full_name
 
-    return render_template("index.html", id_to_name=json.dumps(id_to_name, ensure_ascii=False))
+    return render_template("index.html", id_to_name=json.dumps(id_to_name, ensure_ascii=False), title="Tests")
 
 
 # noinspection PyTypeChecker
@@ -194,7 +194,17 @@ def statistic_page(person_id):
         return render_template("statistic.html", person=person,
                                AnswerState=AnswerState, subjects=subject_stat,
                                timeline=timeline, bar_data=json.dumps(bar_data, ensure_ascii=False),
-                               pause_form=pause_form, plan_form=plan_form)
+                               pause_form=pause_form, plan_form=plan_form, title="Statistics: " + person.full_name)
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template('500.html'), 500
 
 
 @socketio.on("get_question_stat")
@@ -374,14 +384,15 @@ def questions_page():
             db.delete(question)
             db.commit()
 
-            return redirect("/settings")
+            return redirect("/questions")
 
         return render_template("question.html",
                                active_tab=active_tab,
                                create_question_form=create_question_form,
                                import_question_form=import_question_form,
                                edit_question_form=edit_question_form,
-                               delete_question_form=delete_question_form)
+                               delete_question_form=delete_question_form,
+                               title="Questions")
 
 
 @app.route("/settings", methods=["POST", "GET"])
@@ -421,7 +432,7 @@ def settings_page():
     groups = db.scalars(select(PersonGroup))
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
-                           tg_settings_form=tg_settings_form)
+                           tg_settings_form=tg_settings_form, title="Settings")
 
 
 @socketio.on('index_connected')
@@ -455,6 +466,7 @@ def peopleList():
                  "answered_count": answered_count,
                  "questions_count": questions_count},
                 ensure_ascii=False))
+            socketio.sleep(0)
 
 
 @socketio.on('index_connected_timeline')

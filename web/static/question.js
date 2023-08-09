@@ -13,13 +13,13 @@ table.on('click', 'tbody tr', (e) => {
 
     if (classList.contains('selected')) {
         classList.remove('selected');
-        document.getElementById('edit_button').setAttribute('disabled', '');
-        document.getElementById('delete_button').setAttribute('disabled', '');
+        document.getElementById('edit_button').disabled = true;
+        document.getElementById('delete_button').disabled = true;
     } else {
         table.rows('.selected').nodes().each((row) => row.classList.remove('selected'));
         classList.add('selected');
-        document.getElementById('edit_button').removeAttribute('disabled');
-        document.getElementById('delete_button').removeAttribute('disabled');
+        document.getElementById('edit_button').disabled = false;
+        document.getElementById('delete_button').disabled = false;
     }
 
 });
