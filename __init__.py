@@ -197,6 +197,16 @@ def statistic_page(person_id):
                                pause_form=pause_form, plan_form=plan_form, title="Statistics: " + person.full_name)
 
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template('500.html'), 500
+
+
 @socketio.on("get_question_stat")
 def get_question_stat(data):
     with db_session.create_session() as db:
