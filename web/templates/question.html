@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block prescripts %}
+    <link href="https://cdn.datatables.net/v/bs5/dt-1.13.6/af-2.6.0/sl-1.7.0/datatables.min.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
     <div class="container">
         <div class="row">
@@ -100,9 +104,98 @@
             </div>
         </div>
 
-        <div class="row">
-            <table class="table">
-                <thead>
+        <div class="row mb-5 mt-5">
+            <div class="col mb-2">
+                <button id="delete_button" class="btn btn-outline-danger" data-bs-toggle="modal"
+                        data-bs-target="#deleteModal" disabled="">
+                    Delete
+                    <i class="bi bi-trash" style="font-size: 1rem; color: currentColor;"></i>
+                </button>
+                <button id="edit_button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                        data-bs-target="#editModal" disabled="">
+                    Edit
+                    <i class="bi bi-pencil-square" style="font-size: 1rem; color: currentColor;"></i>
+                </button>
+            </div>
+            <div class="modal fade" id="deleteModal" tabindex="-1"
+                 aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Delete question</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form method="POST">
+                                {{ delete_question_form.csrf_token }}
+                                {{ delete_question_form.id(id="question-id-delete", class="form-control") }}
+                                <div class="mb-3">
+                                    Are you sure, you want to delete, the question from the database permanently?
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                                    </button>
+                                    {{ delete_question_form.delete(type="submit", class="btn btn-outline-danger", id="delete-btn") }}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="editModal" tabindex="-1"
+                 aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5">Editing</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form method="POST">
+                                {{ edit_question_form.csrf_token }}
+                                {{ edit_question_form.id(id="question-id", class="form-control") }}
+                                <div class="mb-3">
+                                    {{ edit_question_form.text.label(class_="form-label") }}
+                                    {{ edit_question_form.text(id="question-text", class_="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.subject.label(class_="form-label") }}
+                                    {{ edit_question_form.subject(id="question-subject", class_="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.options.label(class_="form-label") }}
+                                    {{ edit_question_form.options(id="question-options", class_="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.answer.label(class_="form-label") }}
+                                    {{ edit_question_form.answer(id="question-answer", class_="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.groups.label(class_="form-label") }}
+                                    {{ edit_question_form.groups(id="question-groups", class_="form-control selectpicker", data_actions_box="true") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.level.label(class_="form-label") }}
+                                    {{ edit_question_form.level(id="question-level", class_="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ edit_question_form.article.label(class_="form-label") }}
+                                    {{ edit_question_form.article(id="question-article", class_="form-control") }}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                                    </button>
+                                    {{ edit_question_form.save(type="submit", class="btn btn-primary", id="save-btn") }}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <table id="table" class="table table-striped align-middle">
+                <thead class="align-middle">
                 <tr>
                     <th scope="col">#</th>
                     <th scope="col">Text</th>
@@ -115,21 +208,15 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for q in questions %}
-                    <tr>
-                        <th scope="row">{{ q.id }}</th>
-                        <td>{{ q.text }}</td>
-                        <td>{{ q.subject }}</td>
-                        <td>{{ q.options }}</td>
-                        <td>{{ q.answer }}</td>
-                        <td>{% for item in q.groups %}{{ item.name }}{% if not loop.last %},
-                        {% endif %}{% endfor %}</td>
-                        <td>{{ q.level }}</td>
-                        <td><a href="{{ q.article_url }}">{{ q.article_url }}</a></td>
-                    </tr>
-                {% endfor %}
+
                 </tbody>
             </table>
+
         </div>
     </div>
+{% endblock %}
+
+{% block postscripts %}
+    <script src="https://cdn.datatables.net/v/bs5/dt-1.13.6/af-2.6.0/sl-1.7.0/datatables.min.js"></script>
+    <script src="/static/question.js"></script>
 {% endblock %}

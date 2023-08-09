@@ -1,0 +1,55 @@
+.chart-container {
+    height: 20rem;
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+#timeline {
+    direction: rtl;
+}
+
+#timeline td {
+    width: 3rem;
+}
+
+.chart-container {
+    height: 20rem;
+    padding-left: 3rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.row {
+    padding-top: 2rem;
+}
+
+#PeopleList {
+    padding-left: 3rem;
+    padding-top: 1rem;
+    padding-bottom: 3rem;
+}
+
+.error-container {
+    text-align: center;
+    margin-top: 10%;
+    padding: 30px;
+}
+
+.error-code {
+    font-size: 150px;
+    font-weight: bold;
+    color: #343a40;
+}
+
+.error-message {
+    font-size: 24px;
+    color: #6c757d;
+    margin-top: 10px;
+}
+
+.back-link {
+    margin-top: 20px;
+}
+
