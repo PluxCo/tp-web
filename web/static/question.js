@@ -1,49 +1,9 @@
-// let config_table = {
-//     data: dataSet,
-//     columns: [
-//         {
-//             "data": 'id',
-//             title: "#"
-//         },
-//         {
-//             "data": 'text',
-//             title: "Text"
-//         },
-//         {
-//             "data": 'subject',
-//             title: "Subject"
-//         },
-//         {
-//             "data": 'options',
-//             title: "Options",
-//             width: '30%'
-//         },
-//         {
-//             "data": 'answer',
-//             title: "Answer index"
-//         },
-//         {
-//             "data": 'groups',
-//             title: "Groups"
-//         },
-//         {
-//             "data": 'level',
-//             title: "Difficulty"
-//         },
-//         {
-//             "data": 'article',
-//             title: "Article",
-//             render: function (data, type, row) {
-//                 if (row.article === "none") {
-//                     return 'none'
-//                 }
-//                 return '<a href="' + row.article + '" target="_new">' + data + '</a>';
-//             }
-//         }
-//     ],
-// }
-
-const table = new DataTable('#table', {columns: [{}, {}, {}, {width: "30%"}, {}, {}, {}, {}]});
+const table = new DataTable('#table', {
+    ajax: '/test',
+    processing: true,
+    serverSide: true,
+    columns: [{}, {}, {}, {width: "30%"}, {}, {}, {}, {}]
+});
 
 
 table.on('click', 'tbody tr', (e) => {
