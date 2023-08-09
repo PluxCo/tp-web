@@ -3,9 +3,11 @@ import enum
 import time
 from threading import Thread
 import abc
+from typing import Optional
 
 import numpy as np
 from sqlalchemy import select, func, or_
+from sqlalchemy.engine.result import ScalarResult
 
 from models import db_session
 from models.db_session import create_session
@@ -26,17 +28,33 @@ class WeekDays(enum.Enum):
 
 class GeneratorInterface(abc.ABC):
     @abc.abstractmethod
-    def next_question(self, person: Person) -> Question:
+    def next_question(self, person: Person) -> QuestionAnswer:
         pass
+
+    @staticmethod
+    def _get_planned(db, person: Person) -> Optional[QuestionAnswer]:
+        return db.scalars(select(QuestionAnswer).
+                          where(QuestionAnswer.person_id == person.id,
+                                QuestionAnswer.ask_time <= datetime.datetime.now(),
+                                QuestionAnswer.state == AnswerState.NOT_ANSWERED).
+                          order_by(QuestionAnswer.ask_time)).first()
+
+    @staticmethod
+    def _get_person_questions(db, person: Person) -> list[Question]:
+        return db.scalars(select(Question).
+                          join(Question.groups).
+                          where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                          group_by(Question.id)).all()
 
 
 class SimpleRandomGenerator(GeneratorInterface):
     def next_question(self, person: Person) -> QuestionAnswer:
         with db_session.create_session() as db:
-            person_questions = db.scalars(select(Question).
-                                          join(Question.groups).
-                                          where(PersonGroup.id.in_(pg.id for pg in person.groups)).
-                                          group_by(Question.id)).all()
+            planned = self._get_planned(db, person)
+            if planned is not None:
+                return planned
+
+            person_questions = self._get_person_questions(db, person)
 
             question = np.random.choice(person_questions)
 
@@ -54,11 +72,11 @@ class SimpleRandomGenerator(GeneratorInterface):
 class StatRandomGenerator(GeneratorInterface):
     def next_question(self, person: Person) -> QuestionAnswer:
         with db_session.create_session() as db:
-            person_questions = db.scalars(select(Question).
-                                          join(Question.groups).
-                                          where(PersonGroup.id.in_(pg.id for pg in person.groups)).
-                                          group_by(Question.id)).all()
+            planned = self._get_planned(db, person)
+            if planned is not None:
+                return planned
 
+            person_questions = self._get_person_questions(db, person)
             probabilities = np.zeros(len(person_questions))
 
             for i, question in enumerate(person_questions):
@@ -168,7 +186,7 @@ class Schedule(Thread):
     def task(self):
         question_for_person = []
         with db_session.create_session() as db:
-            persons = db.scalars(select(Person).where(Person.is_paused == False))
+            persons = db.scalars(select(Person).where(Person.is_paused.is_(False)))
             for person in persons:
                 answer = self.generator.next_question(person)
                 question_for_person.append((person, answer))
@@ -178,9 +196,6 @@ class Schedule(Thread):
     def _send_to_people(self, question_to_person):
         with create_session() as db:
             for person, answer in question_to_person:
-                if person.is_paused:
-                    return
-
                 answer = db.merge(answer)
                 person = db.merge(person)
 
