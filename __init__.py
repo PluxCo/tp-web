@@ -3,10 +3,10 @@ import json
 import os
 import time
 
-from flask import Flask, redirect, render_template
+from flask import Flask, redirect, render_template, jsonify, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, emit
-from sqlalchemy import select, func, distinct
+from sqlalchemy import select, func, distinct, or_
 
 import schedule
 import tools
@@ -213,29 +213,78 @@ def get_question_stat(data):
         res = {"question": None, "answers": []}
 
         question = db.get(Question, data["question_id"])
-        res["question"] = question.to_dict(only=("text", "level", "groups.name", "answer"))
+        res["question"] = question.to_dict(
+            only=("text", "level", "groups.name", "answer", "id", "groups.id", "subject", "article_url"))
         res["question"]["options"] = json.loads(question.options)
 
-        answers = db.scalars(select(QuestionAnswer).
-                             where(QuestionAnswer.person_id == data["person_id"],
-                                   QuestionAnswer.question_id == data["question_id"]).
-                             order_by(QuestionAnswer.ask_time))
+        if "person_id" in data:
+            answers = db.scalars(select(QuestionAnswer).
+                                 where(QuestionAnswer.person_id == data["person_id"],
+                                       QuestionAnswer.question_id == data["question_id"]).
+                                 order_by(QuestionAnswer.ask_time))
 
-        for a in answers:
-            a: QuestionAnswer
-            if a.state == AnswerState.TRANSFERRED:
-                answer_state = "IGNORED"
-            elif a.state == AnswerState.NOT_ANSWERED:
-                answer_state = "NOT_ANSWERED"
-            elif a.question.answer == a.person_answer:
-                answer_state = "CORRECT"
-            else:
-                answer_state = "INCORRECT"
+            for a in answers:
+                a: QuestionAnswer
+                if a.state == AnswerState.TRANSFERRED:
+                    answer_state = "IGNORED"
+                elif a.state == AnswerState.NOT_ANSWERED:
+                    answer_state = "NOT_ANSWERED"
+                elif a.question.answer == a.person_answer:
+                    answer_state = "CORRECT"
+                else:
+                    answer_state = "INCORRECT"
 
-            res["answers"].append(a.to_dict(only=("person_answer", "answer_time", "ask_time")))
-            res["answers"][-1]["state"] = answer_state
+                res["answers"].append(a.to_dict(only=("person_answer", "answer_time", "ask_time")))
+                res["answers"][-1]["state"] = answer_state
 
     emit("question_info", res)
+
+
+@app.route("/questions_ajax")
+def questions_ajax():
+    args = request.args
+    res = {
+        "draw": args["draw"],
+        "recordsTotal": 0,
+        "recordsFiltered": 0,
+        "data": []
+    }
+
+    length = int(args["length"])
+    offset = int(args["start"])
+
+    orders = [Question.id, Question.text, Question.subject, Question.options, Question.answer, Question.id,
+              Question.level, Question.article_url]
+
+    cur_order = orders[int(args["order[0][column]"])]
+    if args["order[0][dir]"] != "asc":
+        cur_order = cur_order.desc()
+
+    with db_session.create_session() as db:
+        res["recordsTotal"] = db.scalar(func.count(Question.id))
+
+        questions = db.scalars(select(Question).
+                               where(or_(Question.text.ilike(f"%{args['search[value]']}%"),
+                                         Question.subject.ilike(f"%{args['search[value]']}%"),
+                                         Question.options.ilike(f"%{args['search[value]']}%"),
+                                         Question.level.ilike(f"%{args['search[value]']}%"),
+                                         Question.article_url.ilike(f"%{args['search[value]']}%"))).
+                               order_by(cur_order)).all()
+
+        res["recordsFiltered"] = len(questions)
+
+        if offset + length < len(questions):
+            questions = questions[offset:offset + length]
+        else:
+            questions = questions[offset:]
+
+        for q in questions:
+            q: Question
+            options = "<ol>" + "".join(f"<li>{option}</li>" for option in json.loads(q.options)) + "</ol>"
+            groups = ", ".join(g.name for g in q.groups)
+            res["data"].append((q.id, q.text, q.subject, options, q.answer, groups, q.level, q.article_url))
+
+    return jsonify(res)
 
 
 @app.route("/questions", methods=["POST", "GET"])
@@ -328,29 +377,17 @@ def questions_page():
 
             db.commit()
 
+            return redirect("/questions")
+
         if delete_question_form.delete.data:
             question = db.get(Question, int(delete_question_form.id.data))
             db.delete(question)
             db.commit()
 
-        questions_list = []
-        for db_question in db.scalars(select(Question)):
-            question = {
-                "id": db_question.id if db_question.id is not None else '',
-                "text": db_question.text if db_question.text is not None else '',
-                "subject": db_question.subject if db_question.subject is not None else '',
-                "groups": [[str(g.id) for g in db_question.groups],
-                           [g.name for g in db_question.groups]] if db_question.groups is not None else '',
-                "options": json.loads(db_question.options) if db_question.options is not None else '',
-                "answer": db_question.answer if db_question.answer is not None else '',
-                "level": db_question.level if db_question.level is not None else '',
-                "article": db_question.article_url if db_question.article_url is not None else '',
-            }
-            questions_list.append(question)
+            return redirect("/settings")
 
         return render_template("question.html",
                                active_tab=active_tab,
-                               questions=questions_list,
                                create_question_form=create_question_form,
                                import_question_form=import_question_form,
                                edit_question_form=edit_question_form,
