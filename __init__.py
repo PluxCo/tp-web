@@ -384,7 +384,7 @@ def questions_page():
             db.delete(question)
             db.commit()
 
-            return redirect("/settings")
+            return redirect("/questions")
 
         return render_template("question.html",
                                active_tab=active_tab,
