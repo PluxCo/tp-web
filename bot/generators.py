@@ -1,12 +1,13 @@
 import abc
 import datetime
+from typing import Optional
 
 import numpy as np
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 
 from models import db_session
 from models.questions import Question, QuestionAnswer, AnswerState
-from models.users import Person, PersonGroup
+from models.users import Person, PersonGroup, PersonGroupAssociation
 
 
 class GeneratorInterface(abc.ABC):
@@ -31,33 +32,25 @@ class GeneratorInterface(abc.ABC):
 
 
 class SimpleRandomGenerator(GeneratorInterface):
-    def next_bunch(self, person: Person, count=1) -> list[Question]:
+    def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
         with db_session.create_session() as db:
             planned = self._get_planned(db, person)
-            if planned is not None:
-                return planned
+            if len(planned) >= count:
+                return planned[:count]
 
             person_questions = self._get_person_questions(db, person)
 
-            question = np.random.choice(person_questions)
+        questions = np.random.choice(person_questions, size=count - len(planned), replace=False)
 
-            cur_answer = QuestionAnswer(question_id=question.id,
-                                        person_id=person.id,
-                                        ask_time=datetime.datetime.now(),
-                                        state=AnswerState.NOT_ANSWERED)
-
-            db.add(cur_answer)
-            db.commit()
-
-        return cur_answer
+        return planned + questions
 
 
 class StatRandomGenerator(GeneratorInterface):
-    def next_bunch(self, person: Person, count=1) -> list[Question]:
+    def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
         with db_session.create_session() as db:
             planned = self._get_planned(db, person)
-            if planned is not None:
-                return planned
+            if len(planned) >= count:
+                return planned[:count]
 
             person_questions = self._get_person_questions(db, person)
             probabilities = np.zeros(len(person_questions))
@@ -102,26 +95,18 @@ class StatRandomGenerator(GeneratorInterface):
                 else:
                     probabilities[i] = None
 
-            with_val = list(filter(lambda x: not np.isnan(x), probabilities))
-            without_val_count = len(person_questions) - len(with_val)
+        with_val = list(filter(lambda x: not np.isnan(x), probabilities))
+        without_val_count = len(person_questions) - len(with_val)
 
-            increased_avg = (sum(with_val) + without_val_count * max(with_val)) / len(person_questions)
+        increased_avg = (sum(with_val) + without_val_count * max(with_val)) / len(person_questions)
 
-            probabilities[np.isnan(probabilities)] = increased_avg
+        probabilities[np.isnan(probabilities)] = increased_avg
 
-            probabilities /= sum(probabilities)
+        probabilities /= sum(probabilities)
 
-            question = np.random.choice(person_questions, p=probabilities)
+        questions = np.random.choice(person_questions, p=probabilities, size=count - len(planned), replace=False)
 
-            cur_answer = QuestionAnswer(question_id=question.id,
-                                        person_id=person.id,
-                                        ask_time=datetime.datetime.now(),
-                                        state=AnswerState.NOT_ANSWERED)
-
-            db.add(cur_answer)
-            db.commit()
-
-        return cur_answer
+        return planned + questions
 
 
 class Session:
@@ -132,8 +117,26 @@ class Session:
         self.max_time = max_time
         self.max_questions = max_questions
 
-    def generate_questions(self):
-        pass
+        self._questions: list[QuestionAnswer] = []
+        self._start_time = datetime.datetime.now()
 
-    def next_question(self) -> QuestionAnswer:
-        pass
+    def generate_questions(self):
+        self._questions = self.generator.next_bunch(self.person, self.max_questions)
+        self._start_time = datetime.datetime.now()
+
+    def next_question(self) -> Optional[QuestionAnswer]:
+        if not self._questions or self._start_time + self.max_time < datetime.datetime.now():
+            return None
+
+        cur_answer = cur_question = self._questions.pop()
+        with db_session.create_session() as db:
+            if isinstance(cur_question, Question):
+                cur_answer = QuestionAnswer(question_id=cur_question.id,
+                                            person_id=cur_question.id,
+                                            ask_time=datetime.datetime.now(),
+                                            state=AnswerState.NOT_ANSWERED)
+
+                db.add(cur_answer)
+                db.commit()
+
+            return db.merge(cur_answer)
