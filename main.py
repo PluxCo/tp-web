@@ -5,8 +5,8 @@ from models import db_session
 from bot import start_bot, send_question
 import schedule
 from tools import Settings, WeekDays
-from web.web import app as web
-from web.web import socketio
+from web import app as web
+from web import socketio
 
 # Environment variables
 # ADMIN_PASSWD: password for web panel
