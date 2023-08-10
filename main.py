@@ -21,6 +21,8 @@ default_settings = {"tg_pin": "32266",
                     "week_days": [WeekDays(d) for d in range(7)],
                     "distribution_function": math.exp,
                     "repetition_amount": 6,
+                    "max_time": datetime.timedelta(minutes=10),
+                    "max_questions": 7,
                     }
 
 if __name__ == '__main__':
