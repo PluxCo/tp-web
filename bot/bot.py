@@ -12,7 +12,7 @@ from models.questions import Question, QuestionAnswer, AnswerState
 from models.users import Person, PersonGroup, PersonGroupAssociation
 from tools import Settings
 import random
-from generators import Session
+from .generators import Session
 
 bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
@@ -202,9 +202,10 @@ def send_question(person: Person):
             answer.state = AnswerState.TRANSFERRED
             db.commit()
 
-        markup = InlineKeyboardMarkup()
-        options = json.loads(answer.question.options)
-        question_text = answer.question.text
+            markup = InlineKeyboardMarkup()
+            options = json.loads(answer.question.options)
+            question_text = answer.question.text
+
         buttons = []
         for answer_index in range(len(options)):
             question_text += '\n' + str(answer_index + 1) + '. ' + options[answer_index]

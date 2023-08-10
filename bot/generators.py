@@ -24,10 +24,11 @@ class GeneratorInterface(abc.ABC):
                           order_by(QuestionAnswer.ask_time)).all()
 
     @staticmethod
-    def _get_person_questions(db, person: Person) -> list[Question]:
+    def _get_person_questions(db, person: Person, planned: list[QuestionAnswer]) -> list[Question]:
         return db.scalars(select(Question).
                           join(Question.groups).
-                          where(PersonGroup.id.in_(pg.id for pg in person.groups)).
+                          where(PersonGroup.id.in_(pg.id for pg in person.groups),
+                                Question.id.notin_(qa.question_id for qa in planned)).
                           group_by(Question.id)).all()
 
 
@@ -38,11 +39,13 @@ class SimpleRandomGenerator(GeneratorInterface):
             if len(planned) >= count:
                 return planned[:count]
 
-            person_questions = self._get_person_questions(db, person)
+            person_questions = self._get_person_questions(db, person, planned)
 
-        questions = np.random.choice(person_questions, size=count - len(planned), replace=False)
+        questions = np.random.choice(person_questions,
+                                     size=min(count - len(planned), len(person_questions)),
+                                     replace=False)
 
-        return planned + questions
+        return list(planned) + list(questions)
 
 
 class StatRandomGenerator(GeneratorInterface):
@@ -52,7 +55,7 @@ class StatRandomGenerator(GeneratorInterface):
             if len(planned) >= count:
                 return planned[:count]
 
-            person_questions = self._get_person_questions(db, person)
+            person_questions = self._get_person_questions(db, person, planned)
             probabilities = np.zeros(len(person_questions))
 
             for i, question in enumerate(person_questions):
@@ -104,14 +107,15 @@ class StatRandomGenerator(GeneratorInterface):
 
         probabilities /= sum(probabilities)
 
-        questions = np.random.choice(person_questions, p=probabilities, size=count - len(planned), replace=False)
+        questions = np.random.choice(person_questions,
+                                     p=probabilities,
+                                     size=min(count - len(planned), len(person_questions)),
+                                     replace=False)
 
-        return planned + questions
+        return list(planned) + list(questions)
 
 
 class Session:
-    generator = StatRandomGenerator()
-
     def __init__(self, person: Person, max_time, max_questions):
         self.person = person
         self.max_time = max_time
@@ -119,6 +123,8 @@ class Session:
 
         self._questions: list[QuestionAnswer] = []
         self._start_time = datetime.datetime.now()
+
+        self.generator = StatRandomGenerator()
 
     def generate_questions(self):
         self._questions = self.generator.next_bunch(self.person, self.max_questions)
@@ -132,11 +138,11 @@ class Session:
         with db_session.create_session() as db:
             if isinstance(cur_question, Question):
                 cur_answer = QuestionAnswer(question_id=cur_question.id,
-                                            person_id=cur_question.id,
+                                            person_id=self.person.id,
                                             ask_time=datetime.datetime.now(),
                                             state=AnswerState.NOT_ANSWERED)
 
                 db.add(cur_answer)
                 db.commit()
 
-            return db.merge(cur_answer)
+            return cur_answer
