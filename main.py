@@ -4,7 +4,7 @@ import math
 from models import db_session
 from bot import start_bot, send_question
 import schedule
-from tools import Settings
+from tools import Settings, WeekDays
 from web import app as web
 from web import socketio
 
@@ -18,7 +18,7 @@ default_settings = {"tg_pin": "32266",
                     "from_time": datetime.time(7),
                     "to_time": datetime.time(20),
                     "order": 1,
-                    "week_days": [schedule.WeekDays(d) for d in range(7)],
+                    "week_days": [WeekDays(d) for d in range(7)],
                     "distribution_function": math.exp,
                     "repetition_amount": 6,
                     }

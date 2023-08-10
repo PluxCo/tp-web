@@ -6,7 +6,7 @@ from wtforms.widgets import TextInput
 
 from ._ext import BasePrefixedForm
 
-from schedule import WeekDays
+from tools import WeekDays
 
 
 class TimeDeltaField(StringField):

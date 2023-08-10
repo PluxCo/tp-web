@@ -1,5 +1,4 @@
 import datetime
-import enum
 import time
 from threading import Thread
 import abc
@@ -7,23 +6,12 @@ from typing import Optional
 
 import numpy as np
 from sqlalchemy import select, func, or_
-from sqlalchemy.engine.result import ScalarResult
 
 from models import db_session
 from models.db_session import create_session
 from models.questions import Question, QuestionAnswer, AnswerState
 from models.users import Person, PersonGroup, PersonGroupAssociation
-from tools import Settings
-
-
-class WeekDays(enum.Enum):
-    Monday = 0
-    Tuesday = 1
-    Wednesday = 2
-    Thursday = 3
-    Friday = 4
-    Saturday = 5
-    Sunday = 6
+from tools import Settings, WeekDays
 
 
 class GeneratorInterface(abc.ABC):
