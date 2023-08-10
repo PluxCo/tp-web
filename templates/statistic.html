@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block prescripts %}
+    <script src="{{ url_for('static', filename='statistic_ext.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='statistic.css') }}">
     <script>
         config = {
@@ -18,7 +19,7 @@
                 <div class="modal-header">
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body mx-3">
                     <dl class="row my-1 me-3">
                         <dt>Question</dt>
                         <dd class="mx-3 datable q_text"></dd>
@@ -29,7 +30,7 @@
                         <dt>Answer</dt>
                         <dd class="mx-3 datable q_correct"></dd>
                     </dl>
-                    <div class="row mb-1 me-3 table-responsive" style="max-height: 300px;">
+                    <div class="row mb-1 table-responsive" style="max-height: 300px;">
                         <table class="table align-middle">
                             <thead>
                             <tr>
@@ -81,8 +82,8 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <div class="d-flex gap-3">
-            <h2 class="{{ "text-secondary" if person.is_paused else "" }} mt-3" id="person"
+        <div class="d-flex gap-3 mt-3">
+            <h2 class="{{ "text-secondary" if person.is_paused else "" }}" id="person"
                 data-person="{{ person.id }}">{{ person.full_name }}</h2>
             <form method="POST" action="">
                 {{ pause_form.csrf_token }}
