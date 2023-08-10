@@ -5,9 +5,41 @@
 body.modal-open {
     overflow: hidden;
 }
+#modal-table {
+    max-height: 300px;
+}
+
+.modal-content {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(6.5px);
+    -webkit-backdrop-filter: blur(6.5px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+#v-pills-tabContent {
+     background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(6.5px);
+    -webkit-backdrop-filter: blur(6.5px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.modal-backdrop {
+    opacity: 0.1 !important;
+}
 
 #timeline {
     direction: rtl;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    overflow-y: scroll;
+}
+
+#timeline::-webkit-scrollbar {
+    display: none;
 }
 
 #timeline td {
@@ -19,10 +51,6 @@ body.modal-open {
     padding-left: 3rem;
     margin-top: 1rem;
     margin-bottom: 1rem;
-}
-
-.row {
-    padding-top: 2rem;
 }
 
 #PeopleList {

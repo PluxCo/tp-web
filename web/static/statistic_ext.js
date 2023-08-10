@@ -57,3 +57,6 @@ socket.on("question_info", function (data) {
 
     console.log(data);
 })
+
+const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
