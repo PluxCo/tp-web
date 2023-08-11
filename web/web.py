@@ -8,7 +8,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, emit
 from sqlalchemy import select, func, distinct, or_
 
-import schedule
 import tools
 from models import db_session
 from models.questions import QuestionAnswer, Question, AnswerState
@@ -422,7 +421,7 @@ def settings_page():
     if schedule_settings_form.save_schedule.data and schedule_settings_form.validate():
         settings = tools.Settings()
         settings["time_period"] = schedule_settings_form.time_period.data
-        settings["week_days"] = [schedule.WeekDays(d) for d in schedule_settings_form.week_days.data]
+        settings["week_days"] = [tools.WeekDays(d) for d in schedule_settings_form.week_days.data]
         settings["from_time"] = schedule_settings_form.from_time.data
         settings["to_time"] = schedule_settings_form.to_time.data
 
