@@ -439,7 +439,7 @@ def settings_page():
 
 
 @socketio.on('index_connected')
-def peopleList():
+def people_list():
     with db_session.create_session() as db:
         persons = db.scalars(select(Person)).all()
         for person in persons:
