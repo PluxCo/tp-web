@@ -206,6 +206,9 @@ def page_not_found(e):
 def internal_error(e):
     return render_template('500.html'), 500
 
+@app.errorhandler(401)
+def login_error(e):
+    return render_template('401.html'), 401
 
 @socketio.on("get_question_stat")
 def get_question_stat(data):
