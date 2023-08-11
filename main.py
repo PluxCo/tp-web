@@ -19,8 +19,8 @@ default_settings = {"tg_pin": "32266",
                     "to_time": datetime.time(23, 59),
                     "order": 1,
                     "week_days": [WeekDays(d) for d in range(7)],
-                    "max_time": datetime.timedelta(minutes=10),
-                    "max_questions": 7,
+                    "max_time": datetime.timedelta(minutes=1),
+                    "max_questions": 1,
                     }
 
 if __name__ == '__main__':
