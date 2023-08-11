@@ -30,6 +30,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='base.js') }}"></script>
     {% block prescripts %}{% endblock %}
 </head>
 <body>
@@ -54,6 +55,28 @@
                     <a class="nav-link" href="/logout">Logout</a>
                 </div>
             {% endif %}
+            <li class="navbar-nav nav-item dropdown">
+            <button class="btn btn-link nav-link dropdown-toggle" id="bd-theme" type="button" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static">
+              <i class="bi bi-circle-half"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" style="min-width: 1rem;" aria-labelledby="bd-theme-text">
+              <li>
+                <button type="button" class="dropdown-item" data-bs-theme-value="light" aria-pressed="false">
+                  <i class="bi bi-brightness-high"></i>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item" data-bs-theme-value="dark" aria-pressed="false">
+                  <i class="bi bi-moon"></i>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item active" data-bs-theme-value="auto" aria-pressed="true">
+                  <i class="bi bi-circle-half"></i>
+                </button>
+              </li>
+            </ul>
+          </li>
         </div>
     </div>
 </nav>

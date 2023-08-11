@@ -31,8 +31,8 @@
                         <dd class="mx-3 datable q_correct"></dd>
                     </dl>
                     <div class="table table-responsive" id="modal-table">
-                        <table class="table align-middle">
-                            <thead class="">
+                        <table class="table align-middle mb-0" id="modal-inner-table">
+                            <thead>
                             <tr class="sticky-top">
                                 <th>Person answer</th>
                                 <th>Ask time</th>
@@ -109,7 +109,7 @@
                 </button>
             </div>
             <div class="col-sm">
-                <div class="tab-content" id="v-pills-tabContent">
+                <div class="tab-content" id="v-pills-tabContent-statistics">
                     <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel"
                          aria-labelledby="v-pills-home-tab" tabindex="0">
                         <div class="chart-container">
@@ -148,8 +148,7 @@
                             {% set a_label = "Planned" %}
                         {% endif %}
 
-                        <td class="text-center {{ a_bg }} question_stat" data-question="{{ answer.question.id }}"
-                            data-bs-toggle="tooltip" data-bs-title={{ a_label }}>
+                        <td class="text-center {{ a_bg }} question_stat" data-question="{{ answer.question.id }}">
                         </td>
                     {% endfor %}
                 </tr>
