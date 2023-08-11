@@ -55,8 +55,4 @@ socket.on("question_info", function (data) {
         datable.classList.remove("placeholder", "col-5");
     });
 
-    console.log(data);
 })
-
-const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
