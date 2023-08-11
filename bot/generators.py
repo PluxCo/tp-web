@@ -5,6 +5,8 @@ from typing import Optional
 import numpy as np
 from sqlalchemy import select, func, or_
 
+from tools import Settings
+
 from models import db_session
 from models.questions import Question, QuestionAnswer, AnswerState
 from models.users import Person, PersonGroup, PersonGroupAssociation
@@ -12,7 +14,7 @@ from models.users import Person, PersonGroup, PersonGroupAssociation
 
 class GeneratorInterface(abc.ABC):
     @abc.abstractmethod
-    def next_bunch(self, person: Person, count=1) -> list[Question]:
+    def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
         pass
 
     @staticmethod
@@ -79,10 +81,7 @@ class StatRandomGenerator(GeneratorInterface):
                                              where(QuestionAnswer.person_id == person.id,
                                                    QuestionAnswer.question_id == question.id))
 
-                    answers_after_first = db.scalar(select(func.count(QuestionAnswer.id)).
-                                                    where(QuestionAnswer.person_id == person.id,
-                                                          QuestionAnswer.ask_time > first_answer.ask_time,
-                                                          QuestionAnswer.state != AnswerState.NOT_ANSWERED)) + 1
+                    periods_count = (datetime.datetime.now() - first_answer.ask_time) / Settings()["time_period"]
 
                     max_target_level = db.scalar(select(func.max(PersonGroupAssociation.target_level)).
                                                  where(PersonGroupAssociation.person_id == person.id,
@@ -90,8 +89,8 @@ class StatRandomGenerator(GeneratorInterface):
                                                            q.id for q in question.groups)))
 
                     p = (datetime.datetime.now() - last_correct_or_ignored.ask_time).total_seconds() / correct_count
-                    p *= np.abs(np.cos(np.pi * np.log2(answers_after_first + 4))) ** (
-                            ((answers_after_first + 4) ** 2) / 20)  # planning questions
+                    p *= np.abs(np.cos(np.pi * np.log2(periods_count + 4))) ** (
+                            ((periods_count + 4) ** 2) / 20)  # planning questions
                     p *= np.e ** (-0.5 * (max_target_level - question.level) ** 2)  # normal by level
 
                     probabilities[i] = p
