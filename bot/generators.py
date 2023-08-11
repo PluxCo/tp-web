@@ -58,7 +58,10 @@ class StatRandomGenerator(GeneratorInterface):
                 return planned[:count]
 
             person_questions = self._get_person_questions(db, person, planned)
-            probabilities = np.zeros(len(person_questions))
+            probabilities = np.ones(len(person_questions))
+
+            if not person_questions:
+                return planned[:count]
 
             for i, question in enumerate(person_questions):
                 question: Question
@@ -100,10 +103,12 @@ class StatRandomGenerator(GeneratorInterface):
         with_val = list(filter(lambda x: not np.isnan(x), probabilities))
         without_val_count = len(person_questions) - len(with_val)
 
-        increased_avg = (sum(with_val) + without_val_count * max(with_val)) / len(person_questions)
+        if with_val:
+            increased_avg = (sum(with_val) + without_val_count * max(with_val)) / len(person_questions)
+        else:
+            increased_avg = 1
 
         probabilities[np.isnan(probabilities)] = increased_avg
-
         probabilities /= sum(probabilities)
 
         questions = np.random.choice(person_questions,
