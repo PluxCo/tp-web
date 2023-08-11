@@ -16,7 +16,7 @@ from models.users import Person, PersonGroup
 from web.forms.users import LoginForm, UserCork, CreateGroupForm, PausePersonForm
 from web.forms.questions import CreateQuestionForm, ImportQuestionForm, PlanQuestionForm, EditQuestionForm, \
     DeleteQuestionForm
-from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm
+from web.forms.settings import TelegramSettingsForm, ScheduleSettingsForm, SessionSettingsForm
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
@@ -405,6 +405,7 @@ def settings_page():
     tg_settings_form = TelegramSettingsForm(data=tools.Settings())
     schedule_settings_form = ScheduleSettingsForm(data=tools.Settings(),
                                                   week_days=[d.value for d in tools.Settings()["week_days"]])
+    session_settings_form = SessionSettingsForm(data=tools.Settings())
 
     if create_group_form.create_group.data and create_group_form.validate():
         new_group = PersonGroup()
@@ -431,10 +432,19 @@ def settings_page():
         settings.update_settings()
         return redirect("/settings")
 
+    if session_settings_form.save_session_settings.data and session_settings_form.validate_on_submit():
+        settings = tools.Settings()
+        settings["max_time"] = session_settings_form.max_time.data
+        settings["max_questions"] = session_settings_form.max_questions.data
+
+        settings.update_settings()
+        return redirect("/settings")
+
     groups = db.scalars(select(PersonGroup))
     return render_template("settings.html", create_group_form=create_group_form, groups=groups,
                            schedule_settings_form=schedule_settings_form,
-                           tg_settings_form=tg_settings_form, title="Settings")
+                           tg_settings_form=tg_settings_form, session_settings_form=session_settings_form,
+                           title="Settings")
 
 
 @socketio.on('index_connected')
