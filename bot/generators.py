@@ -90,7 +90,7 @@ class StatRandomGenerator(GeneratorInterface):
 
                     p = (datetime.datetime.now() - last_correct_or_ignored.ask_time).total_seconds() / correct_count
                     p *= np.abs(np.cos(np.pi * np.log2(periods_count + 4))) ** (
-                            ((periods_count + 4) ** 2) / 20)  # planning questions
+                            ((periods_count + 4) ** 2) / 20) + 0.001  # planning questions
                     p *= np.e ** (-0.5 * (max_target_level - question.level) ** 2)  # normal by level
 
                     probabilities[i] = p
@@ -133,7 +133,7 @@ class Session:
         if not self._questions or self._start_time + self.max_time < datetime.datetime.now():
             return None
 
-        cur_answer = cur_question = self._questions.pop()
+        cur_answer = cur_question = self._questions.pop(0)
         with db_session.create_session() as db:
             if isinstance(cur_question, Question):
                 cur_answer = QuestionAnswer(question_id=cur_question.id,
