@@ -1,10 +1,21 @@
 import json
 
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, abort
 from sqlalchemy import select, update, delete
 
 from models import questions
 from models.db_session import create_session
+
+
+def abort_if_question_doesnt_exist(func):
+    def wrapper(*args, **kwargs):
+        with create_session() as db:
+            if db.get(questions.Question, kwargs['question_id']) is None:
+                abort(404, message=f"The question with id {kwargs['question_id']} doesn't exist")
+        return func(*args, **kwargs)
+
+    return wrapper
+
 
 update_data_parser = reqparse.RequestParser()
 update_data_parser.add_argument('text', type=str, required=False)
@@ -26,12 +37,14 @@ create_data_parser.add_argument('article_url', type=int, required=False)
 
 
 class Question(Resource):
+    @abort_if_question_doesnt_exist
     def get(self, question_id):
         with create_session() as db:
             db_question = db.get(questions.Question, question_id).to_dict(rules=("-groups.id", "-groups.question_id"))
 
         return db_question, 200
 
+    @abort_if_question_doesnt_exist
     def post(self, question_id):
         args = update_data_parser.parse_args()
         filtered_args = {k: v for k, v in args.items() if v is not None}
