@@ -15,7 +15,8 @@ class AnswerState(enum.Enum):
     ANSWERED = 2
 
 
-class QuestionGroupAssociation(SqlAlchemyBase):
+# TODO: get rid of it
+class QuestionGroupAssociation(SqlAlchemyBase, SerializerMixin):
     __tablename__ = "question_to_group"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
