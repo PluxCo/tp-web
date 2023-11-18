@@ -4,6 +4,7 @@ import requests
 
 from schedule import schedule
 from schedule.generators import Session
+from api import app as flask_app
 from models import db_session
 from models.users import Person
 from tools import Settings
@@ -39,8 +40,7 @@ def create_session():
         print(session.next_question())
 
 
-default_settings = {"tg_pin": "32266",
-                    "time_period": datetime.timedelta(seconds=30),
+default_settings = {"time_period": datetime.timedelta(seconds=30),
                     "from_time": datetime.time(0),
                     "to_time": datetime.time(23, 59),
                     "order": 1,
@@ -53,7 +53,4 @@ if __name__ == '__main__':
     Settings().setup("data/settings.stg", default_settings)
     db_session.global_init("data/database.db")
 
-    schedule.Schedule(create_session).from_settings().start()
-
-    while True:
-        pass
+    flask_app.run(debug=True, port=3000)

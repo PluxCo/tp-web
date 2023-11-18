@@ -31,6 +31,7 @@ class QuestionResource(Resource):
     def get(self, question_id):
         with create_session() as db:
             db_question = db.get(Question, question_id).to_dict(rules=("-groups.id", "-groups.question_id"))
+            db_question["options"] = json.loads(db_question["options"])
 
         return db_question, 200
 
@@ -72,6 +73,8 @@ class QuestionsListResource(QuestionResource):
         with create_session() as db:
             db_question = [q.to_dict(rules=("-groups.id", "-groups.question_id")) for q in
                            db.scalars(select(Question))]
+            for q in db_question:
+                q["options"] = json.loads(q["options"])
 
         return db_question, 200
 
