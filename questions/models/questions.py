@@ -15,7 +15,6 @@ class AnswerState(enum.Enum):
     ANSWERED = 2
 
 
-# TODO: get rid of it
 class QuestionGroupAssociation(SqlAlchemyBase, SerializerMixin):
     __tablename__ = "question_to_group"
 

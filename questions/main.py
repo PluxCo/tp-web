@@ -2,13 +2,14 @@ import datetime
 
 import requests
 
-import schedule
-from generators import Session
+from schedule import schedule
+from schedule.generators import Session
 from models import db_session
 from models.users import Person
 from tools import Settings
 
 
+# FIXME: get rid of the hard-coded auth token
 def get_all_people():
     resp = requests.get("http://localhost:9011/api/user/search?queryString=*",
                         headers={"Authorization": "CUt_rIp3_acxcGYZ8rBHE7ZOZCOTMAmRb2J5Fwf_EToAMWQBRNRlTvpx"}).json()
