@@ -1,13 +1,8 @@
-import datetime
-
 from flask import Flask
 from flask_restful import Api
 
-from tools import Settings
-from models.db_session import global_init, create_session
-from models.questions import QuestionAnswer, AnswerState
-from api.resources.questions import QuestionResource, QuestionsListResource
 from api.resources.answer import AnswerResource, AnswerListResource
+from api.resources.questions import QuestionResource, QuestionsListResource
 from api.resources.settings import SettingsResource
 
 app = Flask(__name__)

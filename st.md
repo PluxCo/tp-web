@@ -1,5 +1,5 @@
 # Questions service
-
+### API
 ```mermaid
 classDiagram
     class questions
@@ -65,6 +65,29 @@ classDiagram
 
 ```
 
+### Connector
+```mermaid
+classDiagram
+    
+    class Connector {
+        + transfer(ssessions: Session[])*
+    }
+    class TelegramConnector {
+        __init__()
+    }
+    class Resource
+    class TgWebhookResource {
+        - connector: TelegramConnector$
+        + POST()
+    }
+    
+    Connector <|.. TelegramConnector
+    TelegramConnector --* TgWebhookResource
+    Resource <|-- TgWebhookResource
+    
+    <<interface>> Connector
+```
+
 # Telegram service
 
 ### Telegram service API
@@ -88,7 +111,7 @@ classDiagram
     }
     class MessageWithButtons {
         + text: str
-        + buttons: str
+        + buttons: str[]
     }
     class MotivationMessage {
     }

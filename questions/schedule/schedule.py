@@ -2,7 +2,10 @@ import datetime
 import time
 from threading import Thread
 
+from schedule.generators import Session
 from tools import Settings
+from models.users import Person
+from connector.telegram_connector import TelegramConnector
 
 
 class Schedule(Thread):
@@ -18,6 +21,8 @@ class Schedule(Thread):
         Settings().add_update_handler(self.from_settings)
 
         self.previous_call = None
+
+        self.connector = TelegramConnector()
 
     def from_settings(self):
         self._every = Settings()['time_period']
@@ -46,4 +51,11 @@ class Schedule(Thread):
             time.sleep(1)
 
     def task(self):
-        self._callback()
+        users_sessions = []
+        for person in Person.get_all_people():
+            session = Session(person, Settings()["max_time"], Settings()["max_questions"])
+            session.generate_questions()
+            users_sessions.append(session)
+
+        self.connector.transfer(users_sessions)
+

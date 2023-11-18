@@ -1,44 +1,9 @@
 import datetime
 
-import requests
-
-from schedule import schedule
-from schedule.generators import Session
 from api import app as flask_app
 from models import db_session
-from models.users import Person
 from tools import Settings
-
-
-# FIXME: get rid of the hard-coded auth token
-def get_all_people():
-    resp = requests.get("http://localhost:9011/api/user/search?queryString=*",
-                        headers={"Authorization": "CUt_rIp3_acxcGYZ8rBHE7ZOZCOTMAmRb2J5Fwf_EToAMWQBRNRlTvpx"}).json()
-
-    res = []
-
-    for person in resp["users"]:
-        person_id = person["id"]
-        all_groups = [m["groupId"] for m in person["memberships"]]
-
-        if "groupLevels" in person["data"]:
-            person_groups = [(item["groupId"], item["level"]) for item in person["data"]["groupLevels"]
-                             if item["groupId"] in all_groups]
-
-            yield Person(person_id, person_groups)
-        else:
-            yield Person(person_id, [])
-
-
-sessions = {}
-
-
-def create_session():
-    for person in get_all_people():
-        session = Session(person, Settings()["max_time"], Settings()["max_questions"])
-        session.generate_questions()
-        print(session.next_question())
-
+from schedule.schedule import Schedule
 
 default_settings = {"time_period": datetime.timedelta(seconds=30),
                     "from_time": datetime.time(0),
@@ -53,4 +18,6 @@ if __name__ == '__main__':
     Settings().setup("data/settings.stg", default_settings)
     db_session.global_init("data/database.db")
 
-    flask_app.run(debug=True, port=3000)
+    Schedule(lambda x: 0).from_settings().start()
+
+    flask_app.run(debug=False, port=3000)
