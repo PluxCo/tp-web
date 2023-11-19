@@ -201,7 +201,6 @@ stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFw
 def send_messages(messages, webhook):
     # array of id of sending messages
     ids = []
-    messages = [json.loads(messages)]
 
     for message in messages:
         user_id, reply_to, t, data = message["user_id"], message["reply_to"], message["type"], message["data"]
@@ -213,16 +212,22 @@ def send_messages(messages, webhook):
             ids.append(None)
             continue
 
+
+# sending simple message
         if t == 0:
             id = bot.send_message(current_tg_id, data["text"]).message_id
 
+
+# sending message with buttons
         elif t == 1:
             btn_group = InlineKeyboardMarkup()
             for btn_id in range(len(data["buttons"])):
-                btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data=btn_id),
+                btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data=str(btn_id)),
                               row_width=len(data["buttons"]))
             id = bot.send_message(current_tg_id, data["text"], reply_markup=btn_group).message_id
 
+
+# sending motivation
         else:
             id = bot.send_sticker(current_tg_id,
                                   stickers["is_registered"][
