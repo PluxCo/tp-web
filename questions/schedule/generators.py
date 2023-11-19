@@ -102,6 +102,8 @@ class StatRandomGenerator(GeneratorInterface):
                 else:
                     probabilities[i] = None
 
+            db.expunge_all()
+
         with_val = list(filter(lambda x: not np.isnan(x), probabilities))
         without_val_count = len(person_questions) - len(with_val)
 
@@ -151,4 +153,27 @@ class Session:
                 db.add(cur_answer)
                 db.commit()
 
+                db.refresh(cur_answer)
+
             return cur_answer
+
+    @staticmethod
+    def mark_question_as_transferred(question_answer: QuestionAnswer):
+        with db_session.create_session() as db:
+            db.merge(question_answer)
+            question_answer.state = AnswerState.TRANSFERRED
+
+            if question_answer.ask_time is None:
+                question_answer.ask_time = datetime.datetime.now()
+
+            db.commit()
+
+    @staticmethod
+    def register_answer(question_answer: QuestionAnswer, user_answer):
+        with db_session.create_session() as db:
+            db.merge(question_answer)
+            if user_answer is not None:
+                question_answer.person_answer = user_answer
+                question_answer.state = AnswerState.ANSWERED
+                question_answer.answer_time = datetime.datetime.now()
+                db.commit()

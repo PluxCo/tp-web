@@ -41,7 +41,7 @@ class QuestionAnswer(SqlAlchemyBase, SerializerMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"))
-    question: Mapped["Question"] = relationship()
+    question: Mapped["Question"] = relationship(lazy="joined")
     person_id: Mapped[str] = mapped_column()
     person_answer: Mapped[Optional[int]]
     answer_time: Mapped[Optional[datetime.datetime]]

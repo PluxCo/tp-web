@@ -22,7 +22,7 @@ class Person:
             all_groups = [m["groupId"] for m in person["memberships"]]
 
             if "groupLevels" in person["data"]:
-                person_groups = [(item["groupId"], item["groupLevel"]) for item in person["data"]["groupLevels"]
+                person_groups = [(item["groupId"], item["level"]) for item in person["data"]["groupLevels"]
                                  if item["groupId"] in all_groups]
 
                 yield Person(person_id, person_groups)

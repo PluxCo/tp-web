@@ -22,7 +22,7 @@ class Schedule(Thread):
 
         self.previous_call = None
 
-        self.connector = TelegramConnector()
+        self.connector = TelegramConnector("http://localhost:3000/webhook/")
 
     def from_settings(self):
         self._every = Settings()['time_period']
@@ -56,6 +56,6 @@ class Schedule(Thread):
             session = Session(person, Settings()["max_time"], Settings()["max_questions"])
             session.generate_questions()
             users_sessions.append(session)
+            print(person)
 
         self.connector.transfer(users_sessions)
-
