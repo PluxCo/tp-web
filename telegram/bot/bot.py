@@ -22,8 +22,6 @@ bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
 # {tg_id:{full_name:"", data: [{}, {}], groups}}
 
-# TODO add person to db!!!
-
 stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFwACerrwSw3OVyhI-ZjLLwQ",
                              "CAACAgIAAxkBAAKmFWTKqiMrZzmS3yHPHN3nAAHUbElf3gACgRMAAvop0En6hsvCGJL_oy8E",
                              "CAACAgIAAxkBAAKlfGTKcYgpLL0FuHVCcRa_3cQBqnfJAAI0EgACEoP5S_q_MUdvvcoCLwQ",
