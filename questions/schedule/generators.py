@@ -160,14 +160,13 @@ class Session:
     @staticmethod
     def mark_question_as_transferred(question_answer: QuestionAnswer):
         with db_session.create_session() as db:
-            db.merge(question_answer)
+            question_answer = db.get(QuestionAnswer, question_answer.id)
             question_answer.state = AnswerState.TRANSFERRED
 
             if question_answer.ask_time is None:
                 question_answer.ask_time = datetime.datetime.now()
 
             db.commit()
-
     @staticmethod
     def register_answer(question_answer: QuestionAnswer, user_answer):
         with db_session.create_session() as db:

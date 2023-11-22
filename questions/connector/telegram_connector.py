@@ -51,7 +51,6 @@ class TelegramConnector(ConnectorInterface):
             if message_id is not None:
                 self.alive_sessions[message_id] = message_relation[i]
                 # FIXME: status doesnt change
-                print(message_relation[i])
                 message_relation[i][0].mark_question_as_transferred(message_relation[i][1])
 
     def register_answer(self, user_id: str, data_type: AnswerType, data: dict):
