@@ -1,28 +1,29 @@
-import datetime
-import json
 import os
 from threading import Thread
 
 import telebot
 from sqlalchemy import select
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-from requests import post
+from requests import post, get
 
-from .models.user import User
-from .models import db_session
+from models.user import User
+from models import db_session
 
 # from models.questions import Question, QuestionAnswer, AnswerState
 # from models.users import Person, PersonGroup, PersonGroupAssociation
 # from tools import Settings
 import random
+from .telegram_types import Person
 
 # from .generators import Session
 # from .models import MessageType
 
 bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
-target_levels = dict()
-sessions = dict()
+# {tg_id:{full_name:"", data: [{}, {}], groups}}
+
+# TODO add person to db!!!
+
 stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFwACerrwSw3OVyhI-ZjLLwQ",
                              "CAACAgIAAxkBAAKmFWTKqiMrZzmS3yHPHN3nAAHUbElf3gACgRMAAvop0En6hsvCGJL_oy8E",
                              "CAACAgIAAxkBAAKlfGTKcYgpLL0FuHVCcRa_3cQBqnfJAAI0EgACEoP5S_q_MUdvvcoCLwQ",
@@ -55,149 +56,154 @@ stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFw
             }
 
 
-# @bot.message_handler(commands=["start"])
-# def start_handler(message):
-#     start_markup = InlineKeyboardMarkup()
-#     start_markup.add(InlineKeyboardButton(text='Начать', callback_data='start'))
-#     bot.send_message(message.from_user.id,
-#                      'Привет, я бот для тестирования сотрудников 3divi. Перед началом тебе нужно ответить на пару '
-#                      'вопросов.', reply_markup=start_markup)
-#
-#
-# @bot.callback_query_handler(func=lambda call: call.data.startswith('start') or call.data.startswith('end'))
-# def submit_buttons(call: CallbackQuery):
-#     if call.data == "start":
-#         message = bot.send_message(call.message.chat.id, 'Введите код доступа')
-#         bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
-#         bot.register_next_step_handler(message, password_check)
-#
-#     elif call.data == 'end_of_register':
-#         bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
-#         add_new_person(call)
-#
-#
-# def target_level(message: Message):
-#     tg_id = message.chat.id
-#
-#     if list(people[tg_id].groups):
-#         bot.send_message(tg_id, "Теперь нужно ввести уровень каждой выбранной вами группы(уровень - целое число)")
-#         bot.send_message(tg_id, list(people[tg_id].groups)[0].name)
-#         target_levels[tg_id] = []
-#     else:
-#         bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
-#                                 "на которые нужно будет отвечать. Желаю удачи")
-#
-#
-# @bot.message_handler()
-# def add_target_level(message: Message):
-#     if not message.text.isdigit():
-#         bot.send_message(message.chat.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
-#     else:
-#         with db_session.create_session():
-#             target_levels[message.chat.id].append(int(message.text))
-#             if len(target_levels[message.chat.id]) < len(people[message.chat.id].groups):
-#                 bot.send_message(message.chat.id, people[message.chat.id].groups[len(target_levels[message.chat.id])].
-#                                  name)
-#             else:
-#                 update_target_levels(message)
-#
-#
-# def update_target_levels(message: Message):
-#     tg_id = message.chat.id
-#     with db_session.create_session() as db:
-#         for group in range(len(target_levels[tg_id])):
-#             level = db.scalar(select(PersonGroupAssociation).where(PersonGroupAssociation.person_id == people[tg_id].id)
-#                               .where(PersonGroupAssociation.group_id == people[tg_id].groups[group].id))
-#             level.target_level = target_levels[tg_id][group]
-#             db.commit()
-#     bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
-#                             "на которые нужно будет отвечать. Желаю удачи")
-#
-#
-# def password_check(message: Message):
-#     if message.text == Settings()["tg_pin"]:
-#         person_in_db = False
-#         with db_session.create_session() as db:
-#             if db.scalar(select(Person).where(Person.tg_id == message.chat.id)):
-#                 person_in_db = True
-#         if not person_in_db:
-#             msg = bot.send_message(message.chat.id, 'Как тебя зовут(ФИО)?')
-#             bot.register_next_step_handler(msg, get_information_about_person)
-#         else:
-#             bot.send_message(message.chat.id, 'Вы уже зарегестрированы.')
-#             bot.send_sticker(message.chat.id,
-#                              stickers["is_registered"][random.randint(0, len(stickers["is_registered"]) - 1)])
-#     else:
-#         msg = bot.send_message(message.chat.id, 'Неверный код доступа. Попробуйте ещё раз.')
-#         bot.register_next_step_handler(msg, password_check)
-#
-#
-# def get_information_about_person(message: Message):
-#     full_name = message.text
-#
-#     if len(full_name.split()) < 3:
-#         bot.send_message(message.from_user.id,
-#                          'Неправильный формат ввода. Обратите внимание на то, что нужно ввести Фамилию Имя Отчество. '
-#                          'Попробуйте ввести ещё раз.')
-#         bot.register_next_step_handler(message, get_information_about_person)
-#     else:
-#         people[message.from_user.id] = Person()
-#         people[message.from_user.id].full_name = full_name
-#         profession_markup = InlineKeyboardMarkup()
-#
-#         with db_session.create_session() as db:
-#
-#             for prof in db.scalars(select(PersonGroup)):
-#                 profession_markup.add(InlineKeyboardButton(prof.name, callback_data='group_' + str(prof.id)))
-#             profession_markup.add(InlineKeyboardButton('Завершить', callback_data='end_of_register'))
-#             bot.send_message(message.from_user.id, 'Выбери группы, к которым ты относишься',
-#                              reply_markup=profession_markup)
-#
-#
-# def add_new_person(call: CallbackQuery):
-#     telegram_id = call.from_user.id
-#     people[telegram_id].tg_id = telegram_id
-#     with db_session.create_session() as db:
-#         db.add(people[telegram_id])
-#         db.commit()
-#         target_level(call.message)
-#
-#
-# @bot.callback_query_handler(func=lambda call: call.data.startswith('group'))
-# def select_groups(call: CallbackQuery):
-#     with db_session.create_session() as db:
-#
-#         group_id = int(call.data.split('_')[1])
-#         groups = db.scalars(select(PersonGroup))
-#         person = people[call.from_user.id]
-#         current_group = db.scalars(select(PersonGroup).where(PersonGroup.id == group_id)).first()
-#
-#         if current_group.id not in [group.id for group in person.groups]:
-#             person.groups.append(current_group)
-#         else:
-#             person.groups.remove([group for group in person.groups if group.id == group_id][0])
-#         groups_markup = InlineKeyboardMarkup()
-#
-#         for prof in groups:
-#             if prof.id in [i.id for i in person.groups]:
-#                 groups_markup.add(InlineKeyboardButton(prof.name + "\U00002713", callback_data='group_' + str(prof.id)))
-#             else:
-#                 groups_markup.add(InlineKeyboardButton(prof.name, callback_data='group_' + str(prof.id)))
-#
-#         groups_markup.add(InlineKeyboardButton('Завершить', callback_data='end_of_register'))
-#     bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=groups_markup)
-#
-#
-# # первыйй ответ дня, пять правильых ответов подряд ачивкки
-#
-#
-# def create_session(person: Person):
-#     session = Session(person, Settings()["max_time"], Settings()["max_questions"])
-#     sessions[person.tg_id] = session
-#     session.generate_questions()
-#     send_question(person)
+@bot.message_handler(commands=["start"])
+def start_handler(message):
+    start_markup = InlineKeyboardMarkup()
+    start_markup.add(InlineKeyboardButton(text='Начать', callback_data='start'))
+    bot.send_message(message.from_user.id,
+                     'Привет, я бот для тестирования сотрудников 3divi. Перед началом тебе нужно ответить на пару '
+                     'вопросов.', reply_markup=start_markup)
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('start') or call.data.startswith('end'))
+def submit_buttons(call: CallbackQuery):
+    if call.data == "start":
+        message = bot.send_message(call.message.chat.id, 'Введите код доступа')
+        bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
+        bot.register_next_step_handler(message, password_check)
+
+    elif call.data == 'end_of_register':
+        bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
+        target_level(call.message)
+
+
+def target_level(message: Message):
+    tg_id = message.chat.id
+    groups = get(os.environ["FUSIONAUTH_DOMAIN"] + "/api/group",
+                 headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]}).json()["groups"]
+
+    if people[tg_id].groups:
+        bot.send_message(tg_id, "Теперь нужно ввести уровень каждой выбранной вами группы(уровень - целое число)")
+        bot.send_message(tg_id, [group for group in groups if group["id"] == people[tg_id].groups[0]][0]["name"])
+    else:
+        add_new_person(message)
+        bot.send_message(tg_id, "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                                "на которые нужно будет отвечать. Желаю удачи")
+
+
+@bot.message_handler()
+def add_target_level(message: Message):
+    if not message.text.isdigit():
+        bot.send_message(message.chat.id, "Неверный формат ввода, нужно ввести число. Попробуйте ещё раз")
+    else:
+        groups = get(os.environ["FUSIONAUTH_DOMAIN"] + "/api/group",
+                     headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]}).json()["groups"]
+
+        person = people[message.from_user.id]
+        group_id = len(person.group_levels.keys())
+        person.group_levels[person.groups[len(person.group_levels.keys())]] = int(message.text)
+        if len(person.group_levels.keys()) < len(person.groups):
+            bot.send_message(message.chat.id,
+                             [group for group in groups if group["id"] == person.groups[group_id + 1]][0]["name"])
+        else:
+            add_new_person(message)
+            bot.send_message(message.from_user.id,
+                             "Регистрация завершена. Теперь вам будут приходить вопросы в тестовой форме, "
+                             "на которые нужно будет отвечать. Желаю удачи")
+
+
+def password_check(message: Message):
+    with db_session.create_session() as db:
+        if message.text == os.environ["TG_PIN"]:
+            person_in_db = False
+            user_tg_id = message.from_user.id
+            if db.scalar(select(User).where(User.tg_id == user_tg_id)):
+                person_in_db = True
+
+            if not person_in_db:
+                msg = bot.send_message(message.chat.id, 'Как тебя зовут(ФИО)?')
+                bot.register_next_step_handler(msg, get_information_about_person)
+            else:
+                bot.send_message(message.chat.id, 'Вы уже зарегестрированы.')
+                bot.send_sticker(message.chat.id,
+                                 stickers["is_registered"][random.randint(0, len(stickers["is_registered"]) - 1)])
+        else:
+            msg = bot.send_message(message.chat.id, 'Неверный код доступа. Попробуйте ещё раз.')
+            bot.register_next_step_handler(msg, password_check)
+
+
+def get_information_about_person(message: Message):
+    full_name = message.text
+
+    if len(full_name.split()) < 3:
+        bot.send_message(message.from_user.id,
+                         'Неправильный формат ввода. Обратите внимание на то, что нужно ввести Фамилию Имя Отчество. '
+                         'Попробуйте ввести ещё раз.')
+        bot.register_next_step_handler(message, get_information_about_person)
+    else:
+        people[message.from_user.id] = Person()
+        people[message.from_user.id].full_name = full_name
+        profession_markup = InlineKeyboardMarkup()
+
+        groups = get(os.environ["FUSIONAUTH_DOMAIN"] + "/api/group",
+                     headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]}).json()
+
+        for prof in groups["groups"]:
+            profession_markup.add(InlineKeyboardButton(prof["name"], callback_data='group_' + prof["id"]))
+        profession_markup.add(InlineKeyboardButton('Завершить', callback_data='end_of_register'))
+        bot.send_message(message.from_user.id, 'Выбери группы, к которым ты относишься',
+                         reply_markup=profession_markup)
+
+
+def add_new_person(message: Message):
+    person = people[message.from_user.id].to_json()
+
+    try:
+        r = post(os.environ["FUSIONAUTH_DOMAIN"] + "/api/user",
+                 headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]},
+                 json=person).json()
+        print(r)
+        people.pop(message.from_user.id)
+        with db_session.create_session() as db:
+            user = User()
+            user.tg_id = message.from_user.id
+            user.auth_id = r["user"]["id"]
+            db.add(user)
+            db.commit()
+    except Exception as e:
+        print(e)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('group'))
+def select_groups(call: CallbackQuery):
+    group_id = call.data.split('_')[1]
+    person = people[call.from_user.id]
+    groups = get(os.environ["FUSIONAUTH_DOMAIN"] + "/api/group",
+                 headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]}).json()
+
+    if group_id not in person.groups:
+        person.groups.append(group_id)
+    else:
+        person.groups.remove(group_id)
+    groups_markup = InlineKeyboardMarkup()
+
+    for prof in groups["groups"]:
+
+        if prof["id"] in person.groups:
+            groups_markup.add(
+                InlineKeyboardButton(prof["name"] + "\U00002713", callback_data='group_' + str(prof["id"])))
+        else:
+            groups_markup.add(InlineKeyboardButton(prof["name"], callback_data='group_' + str(prof["id"])))
+
+    groups_markup.add(InlineKeyboardButton('Завершить', callback_data='end_of_register'))
+
+    bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=groups_markup)
+
+
+# первыйй ответ дня, пять правильых ответов подряд ачивкки
+
+
+# TODO reply_to
 def send_messages(messages, webhook):
     # array of id of sending messages
     ids = []
@@ -212,24 +218,23 @@ def send_messages(messages, webhook):
             ids.append(None)
             continue
 
-
-# sending simple message
+        # sending simple message
         if t == 0:
-            id = bot.send_message(current_tg_id, data["text"]).message_id
+            id = bot.send_message(int(current_tg_id), data["text"]).message_id
 
 
-# sending message with buttons
+        # sending message with buttons
         elif t == 1:
             btn_group = InlineKeyboardMarkup()
             for btn_id in range(len(data["buttons"])):
                 btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data=str(btn_id)),
                               row_width=len(data["buttons"]))
-            id = bot.send_message(current_tg_id, data["text"], reply_markup=btn_group).message_id
+            id = bot.send_message(int(current_tg_id), data["text"], reply_markup=btn_group).message_id
 
 
-# sending motivation
+        # sending motivation
         else:
-            id = bot.send_sticker(current_tg_id,
+            id = bot.send_sticker(int(current_tg_id),
                                   stickers["is_registered"][
                                       random.randint(0, len(stickers["is_registered"]) - 1)]).message_id
 
@@ -239,43 +244,6 @@ def send_messages(messages, webhook):
         ids.append(id)
     return ids
 
-
-# @bot.callback_query_handler(func=lambda call: call.data.startswith('answer'))
-# def check_answer(call: CallbackQuery):
-#     with db_session.create_session() as db:
-#         _, answer_id, answer_number = call.data.split('_')
-#         cur_answer = db.get(QuestionAnswer, int(answer_id))
-#
-#         bot.edit_message_reply_markup(call.from_user.id, call.message.id, reply_markup=None)
-#         if answer_number == str(cur_answer.question.answer):
-#             bot.reply_to(call.message, 'Юхуууу, правильный ответ, ты умнииичка')
-#             bot.send_sticker(call.message.chat.id,
-#                              stickers["right_answer"][random.randint(0, len(stickers['right_answer']) - 1)])
-#         else:
-#             if cur_answer.question.article_url:
-#                 bot.reply_to(call.message,
-#                              'Как жаль, ответ неправильный. Правильный ответ - \"'
-#                              + json.loads(cur_answer.question.options)[cur_answer.question.answer - 1]
-#                              + '\". Вот тебе интересная статья по этой теме.'
-#                              + '\n' + cur_answer.question.article_url)
-#                 bot.send_sticker(call.from_user.id,
-#                                  stickers["wrong_answer"][random.randint(0, len(stickers['wrong_answer']) - 1)])
-#             else:
-#                 bot.reply_to(call.message, 'Увы, ответ неправильный, не грустите. '
-#                                            'Правильный ответ \"' + json.loads(cur_answer.question.options)
-#                              [cur_answer.question.answer - 1] + "\"")
-#                 bot.send_sticker(call.from_user.id,
-#                                  stickers["wrong_answer"][random.randint(0, len(stickers['wrong_answer']) - 1)])
-#
-#         if cur_answer is not None:
-#             cur_answer.person_answer = int(answer_number)
-#             cur_answer.state = AnswerState.ANSWERED
-#             cur_answer.answer_time = datetime.datetime.now()
-#             db.commit()
-#
-#         person = db.scalar(select(Person).where(Person.tg_id == call.from_user.id))
-#         send_question(person)
-#
 
 def start_bot():
     bot_th = Thread(target=bot.infinity_polling, daemon=True)
