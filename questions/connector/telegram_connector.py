@@ -1,6 +1,7 @@
 import enum
 import json
 import os
+from typing import List, Tuple
 
 from flask_restful import Resource, reqparse
 import requests
@@ -29,7 +30,7 @@ class TelegramConnector(ConnectorInterface):
         request = {"webhook": self.webhook,
                    "messages": []}
 
-        message_relation = []
+        message_relation: list[tuple[Session, QuestionAnswer]] = []
 
         for session in sessions:
             current_question = session.next_question()
@@ -39,7 +40,7 @@ class TelegramConnector(ConnectorInterface):
                     "type": "WITH_BUTTONS",
                     "data": {
                         "text": current_question.question.text,
-                        "buttons": json.loads(current_question.question.options)
+                        "buttons": ["Не знаю"] + json.loads(current_question.question.options)
                     }
                 }
                 request["messages"].append(message)
@@ -50,13 +51,14 @@ class TelegramConnector(ConnectorInterface):
         for i, message_id in enumerate(resp.json()["message_ids"]):
             if message_id is not None:
                 self.alive_sessions[message_id] = message_relation[i]
-                # FIXME: status doesnt change
-                message_relation[i][0].mark_question_as_transferred(message_relation[i][1])
+                session, question = message_relation[i]
+                session.mark_question_as_transferred(question)
 
     def register_answer(self, user_id: str, data_type: AnswerType, data: dict):
         match data_type:
             case AnswerType.BUTTON:
-                session = self.alive_sessions.pop(data["message_id"])
+                session, question_answer = self.alive_sessions.pop(data["message_id"])
+                session.register_answer(question_answer,data["button_id"])
             case AnswerType.REPLY:
                 pass
             case AnswerType.MESSAGE:

@@ -158,7 +158,7 @@ class Session:
             return cur_answer
 
     @staticmethod
-    def mark_question_as_transferred(question_answer: QuestionAnswer):
+    def mark_question_as_transferred(question_answer: QuestionAnswer) -> None:
         with db_session.create_session() as db:
             question_answer = db.get(QuestionAnswer, question_answer.id)
             question_answer.state = AnswerState.TRANSFERRED
@@ -167,10 +167,11 @@ class Session:
                 question_answer.ask_time = datetime.datetime.now()
 
             db.commit()
+
     @staticmethod
     def register_answer(question_answer: QuestionAnswer, user_answer):
         with db_session.create_session() as db:
-            db.merge(question_answer)
+            question_answer = db.get(QuestionAnswer, question_answer.id)
             if user_answer is not None:
                 question_answer.person_answer = user_answer
                 question_answer.state = AnswerState.ANSWERED
