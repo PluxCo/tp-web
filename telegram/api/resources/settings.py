@@ -12,8 +12,11 @@ class SettingsResource(Resource):
 
     def post(self):
         args = post_settings_parser.parse_args()
-        current_settings = Settings()
-        args = {'pin': args['pin']}
-        current_settings.update(args)
-        current_settings.update_settings()
-        return 200
+        if args['pin'].isdigit():
+            current_settings = Settings()
+            args = {'pin': args['pin']}
+            current_settings.update(args)
+            current_settings.update_settings()
+            return 200
+        else:
+            return 404
