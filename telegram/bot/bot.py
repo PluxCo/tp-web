@@ -14,6 +14,7 @@ from models import db_session
 # from tools import Settings
 import random
 from .telegram_types import Person
+from tools import Settings
 
 # from .generators import Session
 # from .models import MessageType
@@ -112,7 +113,7 @@ def add_target_level(message: Message):
 
 def password_check(message: Message):
     with db_session.create_session() as db:
-        if message.text == os.environ["TG_PIN"]:
+        if message.text == Settings()["pin"]:
             person_in_db = False
             user_tg_id = message.from_user.id
             if db.scalar(select(User).where(User.tg_id == user_tg_id)):

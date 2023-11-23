@@ -1,9 +1,12 @@
 from api.telegram_api import app
 from models import db_session
 import bot
+from tools import Settings
 
+default_settings = {"pin": "32266"}
 
 if __name__ == "__main__":
+    Settings().setup("data/settings.json", default_settings)
     db_session.global_init("data/database.db")
 
 
