@@ -202,13 +202,16 @@ def select_groups(call: CallbackQuery):
 # первыйй ответ дня, пять правильых ответов подряд ачивкки
 
 
-# TODO reply_to
+# TODO Webhook process
+
 def send_messages(messages, webhook):
     # array of id of sending messages
     ids = []
 
     for message in messages:
         user_id, reply_to, t, data = message["user_id"], message["reply_to"], message["type"], message["data"]
+        if reply_to == "null":
+            reply_to = None
 
         with db_session.create_session() as db:
             current_tg_id = db.scalar(select(User).where(User.auth_id == user_id)).tg_id
@@ -219,7 +222,7 @@ def send_messages(messages, webhook):
 
         # sending simple message
         if t == 0:
-            id = bot.send_message(int(current_tg_id), data["text"]).message_id
+            id = bot.send_message(int(current_tg_id), data["text"], reply_to_message_id=reply_to).message_id
 
 
         # sending message with buttons
@@ -228,14 +231,16 @@ def send_messages(messages, webhook):
             for btn_id in range(len(data["buttons"])):
                 btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data=str(btn_id)),
                               row_width=len(data["buttons"]))
-            id = bot.send_message(int(current_tg_id), data["text"], reply_markup=btn_group).message_id
+            id = bot.send_message(int(current_tg_id), data["text"], reply_to_message_id=reply_to,
+                                  reply_markup=btn_group).message_id
 
 
         # sending motivation
         else:
             id = bot.send_sticker(int(current_tg_id),
                                   stickers["is_registered"][
-                                      random.randint(0, len(stickers["is_registered"]) - 1)]).message_id
+                                      random.randint(0, len(stickers["is_registered"]) - 1)],
+                                  reply_to_message_id=reply_to).message_id
 
         # r = post(webhook, data={"user_id": user_id,
         #                         "type": t,
