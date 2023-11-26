@@ -257,18 +257,9 @@ def send_messages(messages, webhook):
     with db_session.create_session() as db:
         for i in range(len(ids)):
             if ids[i] is not None:
-                exists = db.scalar(select(Message).where(Message.tg_id == int(tg_ids[i]))) is not None
-                if not exists:
-                    id = [int(ids[i])]
-                    id = json.dumps(id)
-                    db.add(Message(tg_id = int(tg_ids[i]),
-                                   message_ids = id,
-                                   webhook = str(webhook)))
-                else:
-                    row = db.scalar(select(Message).where(Message.tg_id == int(tg_ids[i])))
-                    attachment = json.loads(row.message_ids)
-                    attachment.append(ids[i])
-                    row.message_ids = json.dumps(attachment)
+                db.add(Message(tg_id = int(tg_ids[i]),
+                                message_id = str(ids[i]),
+                                webhook = str(webhook)))
         db.commit()
     return ids
 
