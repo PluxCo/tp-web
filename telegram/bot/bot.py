@@ -1,13 +1,15 @@
 import os
 from threading import Thread
-
+import json
 import telebot
 from sqlalchemy import select
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 from requests import post, get
 
 from models.user import User
+from models.message import Message
 from models import db_session
+from sqlalchemy.orm.attributes import flag_modified
 
 # from models.questions import Question, QuestionAnswer, AnswerState
 # from models.users import Person, PersonGroup, PersonGroupAssociation
@@ -207,6 +209,7 @@ def select_groups(call: CallbackQuery):
 def send_messages(messages, webhook):
     # array of id of sending messages
     ids = []
+    tg_ids = []
 
     for message in messages:
         user_id, reply_to, t, data = message["user_id"], message["reply_to"], message["type"], message["data"]
@@ -214,11 +217,16 @@ def send_messages(messages, webhook):
             reply_to = None
 
         with db_session.create_session() as db:
-            current_tg_id = db.scalar(select(User).where(User.auth_id == user_id)).tg_id
+            current_tg_id = db.scalar(select(User).where(User.auth_id == user_id))
 
         if not current_tg_id:
             ids.append(None)
             continue
+
+
+        current_tg_id = current_tg_id.tg_id
+        tg_ids.append(current_tg_id)
+
 
         # sending simple message
         if t == 0:
@@ -246,7 +254,28 @@ def send_messages(messages, webhook):
         #                         "type": t,
         #                         "data": data})
         ids.append(id)
+    with db_session.create_session() as db:
+        for i in range(len(ids)):
+            if ids[i] is not None:
+                exists = db.scalar(select(Message).where(Message.tg_id == int(tg_ids[i]))) is not None
+                if not exists:
+                    id = [int(ids[i])]
+                    id = json.dumps(id)
+                    db.add(Message(tg_id = int(tg_ids[i]),
+                                   message_ids = id,
+                                   webhook = str(webhook)))
+                else:
+                    row = db.scalar(select(Message).where(Message.tg_id == int(tg_ids[i])))
+                    attachment = json.loads(row.message_ids)
+                    attachment.append(ids[i])
+                    row.message_ids = json.dumps(attachment)
+        db.commit()
     return ids
+
+
+@bot.message_handler(content_types='text')
+def getting_answers(message):
+    pass
 
 
 def start_bot():
