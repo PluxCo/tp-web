@@ -5,20 +5,43 @@ from typing import Optional
 import numpy as np
 from sqlalchemy import select, func, or_
 
-from tools import Settings
-
 from models import db_session
 from models.questions import Question, QuestionAnswer, AnswerState, QuestionGroupAssociation
 from models.users import Person
+from tools import Settings
 
 
 class GeneratorInterface(abc.ABC):
+    """
+    Abstract base class for question generators.
+    """
+
     @abc.abstractmethod
     def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
+        """
+        Generate a list of questions or question answers.
+
+        Args:
+            person (Person): The person for whom questions are generated.
+            count (int): The number of questions to generate.
+
+        Returns:
+            list[Question | QuestionAnswer]: List of generated questions or question answers.
+        """
         pass
 
     @staticmethod
     def _get_planned(db, person: Person) -> list[QuestionAnswer]:
+        """
+        Get planned question answers for a person.
+
+        Args:
+            db: Database session.
+            person (Person): The person for whom planned question answers are retrieved.
+
+        Returns:
+            list[QuestionAnswer]: List of planned question answers.
+        """
         return db.scalars(select(QuestionAnswer).
                           where(QuestionAnswer.person_id == person.id,
                                 QuestionAnswer.ask_time <= datetime.datetime.now(),
@@ -27,6 +50,17 @@ class GeneratorInterface(abc.ABC):
 
     @staticmethod
     def _get_person_questions(db, person: Person, planned: list[QuestionAnswer]) -> list[Question]:
+        """
+        Get questions for a person that are not in the planned list.
+
+        Args:
+            db: Database session.
+            person (Person): The person for whom questions are retrieved.
+            planned (list[QuestionAnswer]): List of planned question answers.
+
+        Returns:
+            list[Question]: List of questions for the person.
+        """
         return db.scalars(select(Question).
                           join(Question.groups).
                           where(QuestionGroupAssociation.group_id.in_(pg for pg, pl in person.groups),
@@ -35,14 +69,31 @@ class GeneratorInterface(abc.ABC):
 
 
 class SimpleRandomGenerator(GeneratorInterface):
+    """
+    Simple random question generator.
+    """
+
     def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
+        """
+        Generate a list of questions or question answers using a simple random strategy.
+
+        Args:
+            person (Person): The person for whom questions are generated.
+            count (int): The number of questions to generate.
+
+        Returns:
+            list[Question | QuestionAnswer]: List of generated questions or question answers.
+        """
         with db_session.create_session() as db:
+            # Get planned questions
             planned = self._get_planned(db, person)
             if len(planned) >= count:
                 return planned[:count]
 
+            # Get available questions for the person
             person_questions = self._get_person_questions(db, person, planned)
 
+        # Randomly select questions from available ones
         questions = np.random.choice(person_questions,
                                      size=min(count - len(planned), len(person_questions)),
                                      replace=False)
@@ -51,18 +102,35 @@ class SimpleRandomGenerator(GeneratorInterface):
 
 
 class StatRandomGenerator(GeneratorInterface):
+    """
+    Statistical random question generator.
+    """
+
     def next_bunch(self, person: Person, count=1) -> list[Question | QuestionAnswer]:
+        """
+        Generate a list of questions or question answers using a statistical random strategy.
+
+        Args:
+            person (Person): The person for whom questions are generated.
+            count (int): The number of questions to generate.
+
+        Returns:
+            list[Question | QuestionAnswer]: List of generated questions or question answers.
+        """
         with db_session.create_session() as db:
+            # Get planned questions
             planned = self._get_planned(db, person)
             if len(planned) >= count:
                 return planned[:count]
 
+            # Get available questions for the person
             person_questions = self._get_person_questions(db, person, planned)
             probabilities = np.ones(len(person_questions))
 
             if not person_questions:
                 return planned[:count]
 
+            # Calculate probabilities based on user's performance and other factors
             for i, question in enumerate(person_questions):
                 question: Question
                 correct_count = db.scalar(select(func.count(QuestionAnswer.id)).
@@ -86,6 +154,7 @@ class StatRandomGenerator(GeneratorInterface):
 
                     periods_count = (datetime.datetime.now() - first_answer.ask_time) / Settings()["time_period"]
 
+                    # Old query
                     # max_target_level = db.scalar(select(func.max(PersonGroupAssociation.target_level)).
                     #                              where(PersonGroupAssociation.person_id == person.id,
                     #                                    PersonGroupAssociation.group_id.in_(
@@ -115,6 +184,7 @@ class StatRandomGenerator(GeneratorInterface):
         probabilities[np.isnan(probabilities)] = increased_avg
         probabilities /= sum(probabilities)
 
+        # Randomly select questions based on calculated probabilities
         questions = np.random.choice(person_questions,
                                      p=probabilities,
                                      size=min(count - len(planned), len(person_questions)),
@@ -124,7 +194,19 @@ class StatRandomGenerator(GeneratorInterface):
 
 
 class Session:
+    """
+    Session for managing questions and answers for a person.
+    """
+
     def __init__(self, person: Person, max_time, max_questions):
+        """
+        Initialize a session for a person.
+
+        Args:
+            person (Person): The person for whom the session is created.
+            max_time: Maximum time for the session.
+            max_questions: Maximum number of questions for the session.
+        """
         self.person = person
         self.max_time = max_time
         self.max_questions = max_questions
@@ -135,10 +217,19 @@ class Session:
         self.generator = StatRandomGenerator()
 
     def generate_questions(self):
+        """
+        Generate questions for the session.
+        """
         self._questions = self.generator.next_bunch(self.person, self.max_questions)
         self._start_time = datetime.datetime.now()
 
     def next_question(self) -> Optional[QuestionAnswer]:
+        """
+        Get the next question in the session.
+
+        Returns:
+            Optional[QuestionAnswer]: The next question or None if the session is over.
+        """
         if not self._questions or self._start_time + self.max_time < datetime.datetime.now():
             return None
 
@@ -159,6 +250,12 @@ class Session:
 
     @staticmethod
     def mark_question_as_transferred(question_answer: QuestionAnswer) -> None:
+        """
+        Mark a question answer as transferred.
+
+        Args:
+            question_answer (QuestionAnswer): The question answer to mark as transferred.
+        """
         with db_session.create_session() as db:
             question_answer = db.get(QuestionAnswer, question_answer.id)
             question_answer.state = AnswerState.TRANSFERRED
@@ -170,6 +267,13 @@ class Session:
 
     @staticmethod
     def register_answer(question_answer: QuestionAnswer, user_answer):
+        """
+        Register an answer for a question.
+
+        Args:
+            question_answer (QuestionAnswer): The question answer for which the user is providing an answer.
+            user_answer: The user's answer to the question.
+        """
         with db_session.create_session() as db:
             question_answer = db.get(QuestionAnswer, question_answer.id)
             if user_answer is not None:

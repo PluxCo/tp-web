@@ -2,10 +2,10 @@ import datetime
 import time
 from threading import Thread
 
+from connector.telegram_connector import TelegramConnector
+from models.users import Person
 from schedule.generators import Session
 from tools import Settings
-from models.users import Person
-from connector.telegram_connector import TelegramConnector
 
 
 class Schedule(Thread):

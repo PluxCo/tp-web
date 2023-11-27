@@ -1,14 +1,32 @@
-import requests
 import os
+
+import requests
 
 
 class Person:
+    """
+    Class representing a person/user with associated groups.
+    """
+
     def __init__(self, user_id: str, groups: list[tuple[str, int]]):
+        """
+        Initialize a Person instance.
+
+        Args:
+            user_id (str): The ID of the person.
+            groups (list[tuple[str, int]]): List of tuples representing groups and their levels.
+        """
         self.id = user_id
         self.groups = groups
 
     @staticmethod
     def get_all_people():
+        """
+        Static method to retrieve all people/users from FusionAuth.
+
+        Yields:
+            Person: A Person instance for each user retrieved.
+        """
         resp = requests.get(f"{os.getenv('FUSIONAUTH_DOMAIN')}/api/user/search?queryString=*",
                             headers={"Authorization": os.getenv("FUSIONAUTH_TOKEN")})
 
@@ -30,4 +48,10 @@ class Person:
                 yield Person(person_id, [])
 
     def __repr__(self):
+        """
+        String representation of the Person object.
+
+        Returns:
+            str: String representation.
+        """
         return f"Person(id={self.id}, groups={self.groups})"
