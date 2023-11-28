@@ -1,21 +1,21 @@
 import os
-from threading import Thread
-import json
-import telebot
-from sqlalchemy import select
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
-from requests import post, get
-
-from models.user import User
-from models.message import Message
-from models import db_session
-from sqlalchemy.orm.attributes import flag_modified
-
 # from models.questions import Question, QuestionAnswer, AnswerState
 # from models.users import Person, PersonGroup, PersonGroupAssociation
 # from tools import Settings
 import random
-from .telegram_types import Person
+from threading import Thread
+
+import requests
+import telebot
+from requests import post, get
+from sqlalchemy import select
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+
+from bot.models.telegram_types import MessageType
+from bot.models.telegram_types import Person
+from models import db_session
+from models.message import Message as MessageModel
+from models.user import User
 from tools import Settings
 
 # from .generators import Session
@@ -56,6 +56,17 @@ stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFw
                               "CAACAgIAAxkBAAKlomTKc4iyNtpBVEc46HeqOI1oWExnAAJUFAACSYP4S6j1CfCFqLj9LwQ"]
             }
 
+
+@bot.callback_query_handler(func=lambda call: call)
+def handling_button_answers(call: CallbackQuery):
+    button_id = int(call.data.split("_")[1])
+    with db_session.create_session() as db:
+        webhook = db.scalar(select(MessageModel).where(call.from_user.id == MessageModel.tg_id,
+                                                       str(call.message.id) == MessageModel.message_id))
+        db_person = db.get(User, int(call.from_user.id))
+
+        if webhook is not None:
+            r = requests.post(webhook.webhook, data={"user_id": db_person.auth_id, "type": MessageType.WITH_BUTTONS, "data": button_id})
 
 @bot.message_handler(commands=["start"])
 def start_handler(message):
@@ -118,16 +129,15 @@ def password_check(message: Message):
         if message.text == Settings()["pin"]:
             person_in_db = False
             user_tg_id = message.from_user.id
-            if db.scalar(select(User).where(User.tg_id == user_tg_id)):
+            if db.get(User, user_tg_id):
                 person_in_db = True
 
             if not person_in_db:
                 msg = bot.send_message(message.chat.id, 'Как тебя зовут(ФИО)?')
                 bot.register_next_step_handler(msg, get_information_about_person)
             else:
-                bot.send_message(message.chat.id, 'Вы уже зарегестрированы.')
-                bot.send_sticker(message.chat.id,
-                                 stickers["is_registered"][random.randint(0, len(stickers["is_registered"]) - 1)])
+                bot.send_message(message.chat.id, 'Рады Вас видеть вновь!')
+                bot.send_sticker(message.chat.id, random.choice(stickers["is_registered"]))
         else:
             msg = bot.send_message(message.chat.id, 'Неверный код доступа. Попробуйте ещё раз.')
             bot.register_next_step_handler(msg, password_check)
@@ -210,58 +220,60 @@ def send_messages(messages, webhook):
     # array of id of sending messages
     ids = []
     tg_ids = []
+    user_fusion_ids = [message["user_id"] for message in messages]
+    users_ids = {}
+    with db_session.create_session() as db:
+        current_users = db.scalars(select(User).where(User.auth_id.in_(user_fusion_ids)))
+        for user in current_users:
+            users_ids[user.auth_id] = user.tg_id
 
     for message in messages:
-        user_id, reply_to, t, data = message["user_id"], message["reply_to"], message["type"], message["data"]
+        user_id, reply_to, message_type, data = message["user_id"], message["reply_to"], MessageType(message["type"]), \
+            message["data"]
         if reply_to == "null":
             reply_to = None
-
-        with db_session.create_session() as db:
-            current_tg_id = db.scalar(select(User).where(User.auth_id == user_id))
-
-        if not current_tg_id:
+        if str(user_id) not in users_ids.keys():
             ids.append(None)
             continue
-
-
-        current_tg_id = current_tg_id.tg_id
+        current_tg_id = users_ids[str(user_id)]
         tg_ids.append(current_tg_id)
 
-
         # sending simple message
-        if t == 0:
+        if message_type == MessageType.SIMPLE:
             id = bot.send_message(int(current_tg_id), data["text"], reply_to_message_id=reply_to).message_id
 
 
         # sending message with buttons
-        elif t == 1:
+        elif message_type == MessageType.WITH_BUTTONS:
             btn_group = InlineKeyboardMarkup()
             for btn_id in range(len(data["buttons"])):
-                btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data=str(btn_id)),
+                btn_group.add(InlineKeyboardButton(data["buttons"][btn_id], callback_data="answer_" + str(btn_id)),
                               row_width=len(data["buttons"]))
             id = bot.send_message(int(current_tg_id), data["text"], reply_to_message_id=reply_to,
                                   reply_markup=btn_group).message_id
 
 
         # sending motivation
-        else:
+        elif message_type == MessageType.MOTIVATION:
             id = bot.send_sticker(int(current_tg_id),
                                   stickers["is_registered"][
                                       random.randint(0, len(stickers["is_registered"]) - 1)],
                                   reply_to_message_id=reply_to).message_id
 
         # r = post(webhook, data={"user_id": user_id,
-        #                         "type": t,
+        #                         "type": message_type,
         #                         "data": data})
         ids.append(id)
     with db_session.create_session() as db:
         for i in range(len(ids)):
             if ids[i] is not None:
-                db.add(Message(tg_id = int(tg_ids[i]),
-                                message_id = str(ids[i]),
-                                webhook = str(webhook)))
+                db.add(MessageModel(tg_id=int(tg_ids[i]),
+                                    message_id=str(ids[i]),
+                                    webhook=str(webhook)))
         db.commit()
     return ids
+
+
 
 
 @bot.message_handler(content_types='text')

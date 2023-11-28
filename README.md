@@ -40,6 +40,7 @@ convenient for them, enhancing their participation in the testing process.
 
 For debugging and testing purposes, you can run the project locally using the `main.py` file. Before running the file,
 make sure you set the necessary environment variables. You can set these variables using the following commands:
+
 ```bash
 export TGTOKEN=<telegram_token>
 export ADMIN_PASSWD=<admin_password>
@@ -47,7 +48,7 @@ python main.py
 ```
 
 Replace `<telegram_token>` with your actual Telegram bot token and `<admin_password>` with the desired administrator
-password. 
+password.
 
 ### Creating Docker Volume
 

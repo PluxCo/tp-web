@@ -20,7 +20,6 @@ class Settings(dict):
 
         if not os.path.exists(filename):
             with open(filename, "w") as file:
-
                 json.dump(dict(), file)
 
         with open(filename, "rb") as file:

@@ -1,7 +1,8 @@
-from .db_session import SqlAlchemyBase
-from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Column, String,Integer
+from sqlalchemy_serializer import SerializerMixin
+
+from .db_session import SqlAlchemyBase
 
 
 class Message(SqlAlchemyBase, SerializerMixin):

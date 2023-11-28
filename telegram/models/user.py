@@ -1,7 +1,7 @@
-from .db_session import SqlAlchemyBase
-
-from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy_serializer import SerializerMixin
+
+from .db_session import SqlAlchemyBase
 
 
 class User(SqlAlchemyBase, SerializerMixin):
