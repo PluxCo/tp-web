@@ -1,7 +1,5 @@
 import os
-# from models.questions import Question, QuestionAnswer, AnswerState
-# from models.users import Person, PersonGroup, PersonGroupAssociation
-# from tools import Settings
+
 import random
 from threading import Thread
 
@@ -18,12 +16,8 @@ from models.message import Message as MessageModel
 from models.user import User
 from tools import Settings
 
-# from .generators import Session
-# from .models import MessageType
-
 bot = telebot.TeleBot(os.environ['TGTOKEN'])
 people = dict()
-# {tg_id:{full_name:"", data: [{}, {}], groups}}
 
 stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFwACerrwSw3OVyhI-ZjLLwQ",
                              "CAACAgIAAxkBAAKmFWTKqiMrZzmS3yHPHN3nAAHUbElf3gACgRMAAvop0En6hsvCGJL_oy8E",
@@ -56,17 +50,6 @@ stickers = {"right_answer": ["CAACAgIAAxkBAAKlemTKcX143oNSqGVlHIjpmf5aWzRBAAJKFw
                               "CAACAgIAAxkBAAKlomTKc4iyNtpBVEc46HeqOI1oWExnAAJUFAACSYP4S6j1CfCFqLj9LwQ"]
             }
 
-
-@bot.callback_query_handler(func=lambda call: call)
-def handling_button_answers(call: CallbackQuery):
-    button_id = int(call.data.split("_")[1])
-    with db_session.create_session() as db:
-        webhook = db.scalar(select(MessageModel).where(call.from_user.id == MessageModel.tg_id,
-                                                       str(call.message.id) == MessageModel.message_id))
-        db_person = db.get(User, int(call.from_user.id))
-
-        if webhook is not None:
-            r = requests.post(webhook.webhook, data={"user_id": db_person.auth_id, "type": MessageType.WITH_BUTTONS, "data": button_id})
 
 @bot.message_handler(commands=["start"])
 def start_handler(message):
@@ -173,7 +156,6 @@ def add_new_person(message: Message):
         r = post(os.environ["FUSIONAUTH_DOMAIN"] + "/api/user",
                  headers={"Authorization": os.environ["FUSIONAUTH_TOKEN"]},
                  json=person).json()
-        print(r)
         people.pop(message.from_user.id)
         with db_session.create_session() as db:
             user = User()
@@ -237,7 +219,7 @@ def send_messages(messages, webhook):
             continue
         current_tg_id = users_ids[str(user_id)]
         tg_ids.append(current_tg_id)
-
+        id = None
         # sending simple message
         if message_type == MessageType.SIMPLE:
             id = bot.send_message(int(current_tg_id), data["text"], reply_to_message_id=reply_to).message_id
@@ -260,10 +242,10 @@ def send_messages(messages, webhook):
                                       random.randint(0, len(stickers["is_registered"]) - 1)],
                                   reply_to_message_id=reply_to).message_id
 
-        # r = post(webhook, data={"user_id": user_id,
-        #                         "type": message_type,
-        #                         "data": data})
         ids.append(id)
+
+    r = post(webhook, json={"message_ids": ids})
+
     with db_session.create_session() as db:
         for i in range(len(ids)):
             if ids[i] is not None:
@@ -274,11 +256,22 @@ def send_messages(messages, webhook):
     return ids
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("answer"))
+def handling_button_answers(call: CallbackQuery):
+    button_id = int(call.data.split("_")[1])
+    with db_session.create_session() as db:
+        webhook = db.scalar(select(MessageModel).where(call.from_user.id == MessageModel.tg_id,
+                                                       str(call.message.id) == MessageModel.message_id))
+        db_person = db.get(User, int(call.from_user.id))
 
-
-@bot.message_handler(content_types='text')
-def getting_answers(message):
-    pass
+        if webhook is not None:
+            try:
+                r = requests.post(webhook.webhook,
+                                  json={"user_id": db_person.auth_id, "type": MessageType.WITH_BUTTONS.value,
+                                        "data": {"message_id": call.from_user.id,
+                                                 "button_id": button_id}})
+            except Exception as e:
+                print(e)
 
 
 def start_bot():

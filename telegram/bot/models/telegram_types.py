@@ -19,11 +19,12 @@ class Person:
     def to_json(self):
         person_info = {"user": {"fullName": self.full_name, "username": self.user_name, "password": self.password,
                                 "memberships": [], "data": {}}}
+
+        person_info["user"]["data"]["groupLevels"] = []
         for group in self.groups:
             person_info["user"]["memberships"].append({"groupId": group})
-            person_info["user"]["data"]["groupLevels"] = []
 
-        for i in range(len(self.group_levels)):
             person_info["user"]["data"]["groupLevels"].append(
-                {"groupId": self.groups[i], "level": self.group_levels[self.groups[i]]})
-            return person_info
+                {"groupId": group, "level": self.group_levels[group]})
+
+        return person_info
