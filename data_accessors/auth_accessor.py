@@ -1,3 +1,5 @@
+import os
+
 import requests
 
 
@@ -9,8 +11,8 @@ class Group:
 
 
 class GroupsDAO:
-    __host = ""
-    __token = ""
+    __host = os.getenv("FUSIONAUTH_DOMAIN")
+    __token = os.getenv("FUSIONAUTH_TOKEN")
 
     @staticmethod
     def set_host(resource: str, token: str):
@@ -69,8 +71,8 @@ class Person:
 
 
 class PersonDAO:
-    __host = ""
-    __token = ""
+    __host = os.getenv("FUSIONAUTH_DOMAIN")
+    __token = os.getenv("FUSIONAUTH_TOKEN")
 
     @staticmethod
     def set_host(resource: str, token: str):

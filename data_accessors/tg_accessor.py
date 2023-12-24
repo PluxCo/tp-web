@@ -1,3 +1,5 @@
+import os
+
 import requests
 
 
@@ -8,7 +10,7 @@ class Settings:
 
 class SettingsDAO:
     __resource = '{}/settings/'
-    __host = ""
+    __host = os.getenv("TELEGRAM_URL", "http://localhost:3001")
 
     @staticmethod
     def set_host(resource: str):

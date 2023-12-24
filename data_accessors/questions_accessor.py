@@ -1,6 +1,7 @@
 import datetime
 import enum
 import logging
+import os
 
 import requests
 
@@ -54,7 +55,7 @@ class Question:
 
 class QuestionsDAO:
     __resource = '{}/question/'
-    __host = ""
+    __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
     def set_host(resource: str):
@@ -111,7 +112,7 @@ class Settings:
 
 class SettingsDAO:
     __resource = '{}/settings/'
-    __host = ""
+    __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
     def set_host(resource: str):
@@ -146,7 +147,7 @@ class SettingsDAO:
 
 class StatisticsDAO:
     __resource = '{}/statistics/'
-    __host = ""
+    __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
     def set_host(resource: str):
@@ -160,6 +161,12 @@ class StatisticsDAO:
     @staticmethod
     def get_user_statistics(person_id) -> dict:
         resp = requests.get(StatisticsDAO.__resource.format(StatisticsDAO.__host) + 'user/' + person_id)
+        return resp.json()
+
+    @staticmethod
+    def get_question_statistics(person_id, question_id) -> dict:
+        resp = requests.get(
+            StatisticsDAO.__resource.format(StatisticsDAO.__host) + f'question/{person_id}/{question_id}')
         return resp.json()
 
 
@@ -186,7 +193,7 @@ class AnswerRecord:
 
 class AnswerRecordDAO:
     __resource = '{}/answer/'
-    __host = ""
+    __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
     def set_host(resource: str):
