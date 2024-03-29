@@ -164,7 +164,7 @@ class Settings:
 
 class SettingsDAO:
     __resource = '{}/settings/'
-    __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
+    __host = os.getenv("TELEGRAM_URL", "http://localhost:3000")
 
     @staticmethod
     def set_host(resource: str):

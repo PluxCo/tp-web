@@ -27,7 +27,9 @@ fusionauth_client = FusionAuthClient(api_key=os.getenv('FUSIONAUTH_CLIENT_ID'),
 
 @app.route('/login')
 def login():
-    login_url = f"{fusionauth_client.base_url}/oauth2/authorize?client_id={fusionauth_client.api_key}&redirect_uri={url_for('callback', _external=True)}&response_type=code"
+    login_url = (f"{fusionauth_client.base_url}/oauth2/authorize?client_id={fusionauth_client.api_key}&"
+                 f"redirect_uri={os.getenv('AUTH_REDIRECT_URI', url_for('callback', _external=True))}&"
+                 f"response_type=code")
     return redirect(login_url)
 
 
