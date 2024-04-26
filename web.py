@@ -8,9 +8,8 @@ from flask_socketio import SocketIO, emit
 
 from data_accessors.auth_accessor import GroupsDAO, Group, PersonDAO
 from data_accessors.briges import BridgeService
-from data_accessors.questions_accessor import QuestionsDAO, Question, QuestionType, SettingsDAO as QuestionSettingsDAO, \
-    Settings as QuestionSettings, StatisticsDAO, AnswerRecordDAO, AnswerState
-from data_accessors.tg_accessor import SettingsDAO as TgSettingsDAO, Settings as TgSettings
+from data_accessors.questions_accessor import QuestionsDAO, Question, QuestionType, StatisticsDAO, AnswerRecordDAO, AnswerState
+from data_accessors.tg_accessor import SettingsDAO, Settings
 from forms import CreateQuestionForm, ImportQuestionForm, EditQuestionForm, DeleteQuestionForm, CreateGroupForm, \
     TelegramSettingsForm, ScheduleSettingsForm, PausePersonForm, PlanQuestionForm
 from forms.answers import DeleteAnswerRecordForm
@@ -27,7 +26,7 @@ fusionauth_client = FusionAuthClient(api_key=os.getenv('FUSIONAUTH_CLIENT_ID'),
 
 @app.route('/login')
 def login():
-    login_url = f"{fusionauth_client.base_url}/oauth2/authorize?client_id={fusionauth_client.api_key}&redirect_uri={url_for('callback', _external=True)}&response_type=code"
+    login_url = f"{fusionauth_client.base_url}/oauth2/authorize?client_id={fusionauth_client.api_key}&redirect_uri={os.getenv('AUTH_REDIRECT_URI')}/callback&response_type=code"
     return redirect(login_url)
 
 
@@ -212,15 +211,14 @@ def questions_page():
 @app.route("/settings", methods=["POST", "GET"])
 @fusionauth_login_required
 def settings_page():
-    q_settings = QuestionSettingsDAO.get_settings()
-    tg_settings = TgSettingsDAO.get_settings()
+    tg_settings = SettingsDAO.get_settings()
 
     create_group_form = CreateGroupForm()
     tg_settings_form = TelegramSettingsForm(tg_pin=tg_settings.pin,
                                             session_duration=tg_settings.session_duration,
                                             max_interactions=tg_settings.max_interactions)
-    schedule_settings_form = ScheduleSettingsForm(time_period=q_settings.time_period, week_days=q_settings.week_days,
-                                                  from_time=q_settings.from_time, to_time=q_settings.to_time)
+    schedule_settings_form = ScheduleSettingsForm(time_period=tg_settings.period, week_days=[],
+                                                  from_time=tg_settings.start_time, to_time=tg_settings.end_time)
 
     if create_group_form.create_group.data and create_group_form.validate():
         new_group = Group("", create_group_form.name.data)
@@ -230,18 +228,19 @@ def settings_page():
         return redirect("/settings")
 
     if tg_settings_form.save_tg.data and tg_settings_form.validate():
-        settings = TgSettings(tg_settings_form.tg_pin.data,
-                              tg_settings_form.session_duration.data,
-                              tg_settings_form.max_interactions.data)
+        tg_settings.pin = tg_settings_form.tg_pin.data
+        tg_settings.session_duration = tg_settings_form.session_duration.data
+        tg_settings.max_interactions = tg_settings_form.max_interactions.data
 
-        TgSettingsDAO.update_settings(settings)
+        SettingsDAO.update_settings(tg_settings)
         return redirect("/settings")
 
     if schedule_settings_form.save_schedule.data and schedule_settings_form.validate():
-        settings = QuestionSettings(schedule_settings_form.time_period.data, schedule_settings_form.from_time.data,
-                                    schedule_settings_form.to_time.data, schedule_settings_form.week_days.data)
+        tg_settings.period = schedule_settings_form.time_period.data
+        tg_settings.start_time = schedule_settings_form.from_time.data
+        tg_settings.end_time = schedule_settings_form.to_time.data
 
-        QuestionSettingsDAO.update_settings(settings)
+        SettingsDAO.update_settings(tg_settings)
         return redirect("/settings")
 
     groups = GroupsDAO.get_all_groups()

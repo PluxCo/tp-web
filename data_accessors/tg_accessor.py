@@ -5,10 +5,15 @@ import requests
 
 
 class Settings:
-    def __init__(self, pin: str, session_duration: datetime.timedelta, max_interactions: int):
+    def __init__(self, pin: str, session_duration: datetime.timedelta, max_interactions: int,
+                 period: datetime.timedelta, start_time: datetime.time, end_time: datetime.time):
         self.max_interactions = max_interactions
         self.session_duration = session_duration
         self.pin = pin
+
+        self.period = period
+        self.start_time = start_time
+        self.end_time = end_time
 
 
 class SettingsDAO:
@@ -21,9 +26,12 @@ class SettingsDAO:
 
     @staticmethod
     def _construct(resp):
-        q = Settings(resp['pin'],
-                     datetime.timedelta(seconds=resp['session_duration']),
-                     resp['amount_of_questions'])
+        q = Settings(resp['password'],
+                     datetime.timedelta(seconds=float(resp['session_duration'])),
+                     resp['amount_of_questions'],
+                     datetime.timedelta(seconds=resp['period']),
+                     datetime.time.fromisoformat(resp["start_time"]),
+                     datetime.time.fromisoformat(resp["end_time"]))
         return q
 
     @staticmethod
@@ -36,7 +44,10 @@ class SettingsDAO:
         req = {
             "pin": settings.pin,
             "session_duration": settings.session_duration.total_seconds(),
-            "amount_of_questions": settings.max_interactions
+            "amount_of_questions": settings.max_interactions,
+            "period": settings.period.total_seconds(),
+            "start_time": settings.start_time.isoformat(),
+            "end_time": settings.end_time.isoformat()
         }
 
-        resp = requests.post(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
+        resp = requests.patch(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
