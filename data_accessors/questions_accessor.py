@@ -66,6 +66,7 @@ class Question:
 
 class QuestionsDAO:
     __resource = '{}/question/'
+    __search_resource = '{}/question/search/'
     __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
@@ -74,10 +75,10 @@ class QuestionsDAO:
 
     @staticmethod
     def _construct(resp):
-        q = Question(resp["id"], resp["text"], resp["subject"], resp["options"],
+        q = Question(resp["id"], resp["text"], resp["subject"], resp.get("options"),
                      resp["answer"], [g["group_id"] for g in resp["groups"]],
                      resp["level"], resp["article_url"],
-                     QuestionType(resp["type"]))
+                     QuestionType[resp["type"]])
         return q
 
     @staticmethod
@@ -98,8 +99,8 @@ class QuestionsDAO:
             "resultsCount": count,
             "offset": offset
         }
-        resp = requests.get(QuestionsDAO.__resource.format(QuestionsDAO.__host),
-                            params=params)
+        resp = requests.post(QuestionsDAO.__search_resource.format(QuestionsDAO.__host),
+                             params=params)
 
         if resp.status_code != 200:
             raise Exception(resp.status_code, resp.text)
@@ -120,7 +121,7 @@ class QuestionsDAO:
             "groups": question.group_ids,
             "level": question.level,
             "article_url": question.article,
-            "type": question.type.value
+            "type": question.type.name
         }
 
         resp = requests.post(QuestionsDAO.__resource.format(QuestionsDAO.__host), json=req)
@@ -160,41 +161,6 @@ class Settings:
         self.from_time = from_time
         self.to_time = to_time
         self.week_days = week_days
-
-
-class SettingsDAO:
-    __resource = '{}/settings/'
-    __host = os.getenv("TELEGRAM_URL", "http://localhost:3000")
-
-    @staticmethod
-    def set_host(resource: str):
-        SettingsDAO.__host = resource
-
-    @staticmethod
-    def _construct(resp):
-        q = Settings(datetime.timedelta(seconds=resp["time_period"]),
-                     datetime.time.fromisoformat(resp["from_time"]),
-                     datetime.time.fromisoformat(resp["to_time"]),
-                     resp["week_days"])
-        return q
-
-    @staticmethod
-    def get_settings() -> Settings:
-        resp = requests.get(SettingsDAO.__resource.format(SettingsDAO.__host)).json()
-        return SettingsDAO._construct(resp)
-
-    @staticmethod
-    def update_settings(settings: Settings):
-        req = {
-            "time_period": settings.time_period.total_seconds(),
-            "from_time": settings.from_time.isoformat(),
-            "to_time": settings.to_time.isoformat(),
-            "week_days": settings.week_days,
-        }
-
-        resp = requests.post(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
-
-        return SettingsDAO._construct(resp.json())
 
 
 class StatisticsDAO:
@@ -247,7 +213,8 @@ class AnswerRecord:
 
 
 class AnswerRecordDAO:
-    __resource = '{}/answer/'
+    __resource = '{}/record/'
+    __search_resource = '{}/record/search/'
     __host = os.getenv("QUESTIONS_URL", "http://localhost:3000")
 
     @staticmethod
@@ -287,14 +254,10 @@ class AnswerRecordDAO:
     def get_records(question_id=None, person_id=None, order="desc", order_by="ask_time", count=-1, offset=0,
                     only_open=False, state: AnswerState = None):
         req = {
-            "answer": {
+            "record": {
                 "question_id": question_id,
                 "person_id": person_id
-            },
-            "order": order,
-            "orderBy": order_by,
-            "resultsCount": count,
-            "offset": offset
+            }
         }
 
         params = {"order": order,
@@ -303,24 +266,24 @@ class AnswerRecordDAO:
                   "offset": offset}
 
         if only_open:
-            req["answer"]["question"] = {"type": QuestionType.OPEN.value}
+            req["record"]["question"] = {"type": QuestionType.OPEN.value}
 
         if state is not None:
-            req["answer"]["state"] = state.value
+            req["record"]["state"] = state.value
 
         if question_id is None:
-            del req["answer"]["question_id"]
+            del req["record"]["question_id"]
         if person_id is None:
-            del req["answer"]["person_id"]
+            del req["record"]["person_id"]
 
-        resp = requests.get(AnswerRecordDAO.__resource.format(AnswerRecordDAO.__host), params=params, json=req)
+        resp = requests.post(AnswerRecordDAO.__search_resource.format(AnswerRecordDAO.__host), params=params, json=req)
 
         if resp.status_code != 200:
             raise Exception(resp.status_code, resp.text)
 
         resp = resp.json()
 
-        answers = (AnswerRecordDAO._construct(item) for item in resp["answers"])
+        answers = (AnswerRecordDAO._construct(item) for item in resp["records"])
         total = resp["results_total"]
 
         return total, answers
