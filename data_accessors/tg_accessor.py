@@ -1,7 +1,10 @@
 import datetime
+import logging
 import os
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class Settings:
@@ -42,7 +45,7 @@ class SettingsDAO:
     @staticmethod
     def update_settings(settings: Settings):
         req = {
-            "pin": settings.pin,
+            "password": settings.pin,
             "session_duration": settings.session_duration.total_seconds(),
             "amount_of_questions": settings.max_interactions,
             "period": settings.period.total_seconds(),
@@ -51,3 +54,6 @@ class SettingsDAO:
         }
 
         resp = requests.patch(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
+
+        if resp.status_code != 200:
+            logger.error("Failed to update settings: %s with request %s", resp.text, req)
