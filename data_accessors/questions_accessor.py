@@ -172,10 +172,10 @@ class SettingsDAO:
 
     @staticmethod
     def _construct(resp):
-        q = Settings(datetime.timedelta(seconds=resp["time_period"]),
-                     datetime.time.fromisoformat(resp["from_time"]),
-                     datetime.time.fromisoformat(resp["to_time"]),
-                     resp["week_days"])
+        q = Settings(datetime.timedelta(seconds=resp["period"]),
+                     datetime.time.fromisoformat(resp["start_time"]),
+                     datetime.time.fromisoformat(resp["end_time"]),
+                     [])
         return q
 
     @staticmethod
@@ -186,13 +186,12 @@ class SettingsDAO:
     @staticmethod
     def update_settings(settings: Settings):
         req = {
-            "time_period": settings.time_period.total_seconds(),
-            "from_time": settings.from_time.isoformat(),
-            "to_time": settings.to_time.isoformat(),
-            "week_days": settings.week_days,
+            "period": settings.time_period.total_seconds(),
+            "start_time": settings.from_time.isoformat(),
+            "end_time": settings.to_time.isoformat(),
         }
 
-        resp = requests.post(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
+        resp = requests.patch(SettingsDAO.__resource.format(SettingsDAO.__host), json=req)
 
         return SettingsDAO._construct(resp.json())
 
