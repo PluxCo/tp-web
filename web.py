@@ -8,8 +8,9 @@ from flask_socketio import SocketIO, emit
 
 from data_accessors.auth_accessor import GroupsDAO, Group, PersonDAO
 from data_accessors.briges import BridgeService
-from data_accessors.questions_accessor import QuestionsDAO, Question, QuestionType, StatisticsDAO, AnswerRecordDAO, AnswerState
-from data_accessors.tg_accessor import SettingsDAO, Settings
+from data_accessors.questions_accessor import QuestionsDAO, Question, QuestionType, StatisticsDAO, AnswerRecordDAO, \
+    AnswerState
+from data_accessors.tg_accessor import SettingsDAO
 from forms import CreateQuestionForm, ImportQuestionForm, EditQuestionForm, DeleteQuestionForm, CreateGroupForm, \
     TelegramSettingsForm, ScheduleSettingsForm, PausePersonForm, PlanQuestionForm
 from forms.answers import DeleteAnswerRecordForm
@@ -260,7 +261,7 @@ def answers_history():
 
         return redirect("/answers")
 
-    return render_template('answers history.html',
+    return render_template('answer history.html',
                            delete_answer_form=delete_answer_form)
 
 
@@ -285,7 +286,6 @@ def answers_ajax():
     total, answers = AnswerRecordDAO.get_records(None, None,
                                                  args["order[0][dir]"], cur_order,
                                                  length, offset,
-                                                 only_open=(args["onlyOpen"] == "true"),
                                                  state=state)
 
     answers = list(answers)
