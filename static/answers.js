@@ -2,7 +2,6 @@ const table = new DataTable('#table', {
     ajax: {
         url: '/answers_ajax',
         data: function (d) {
-            d.onlyOpen = document.getElementById("openCheck").checked;
             d.onlyUnverified = document.getElementById("unverifiedCheck").checked;
         }
     },
