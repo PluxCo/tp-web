@@ -5,6 +5,10 @@ socket.on('connect', function () {
 });
 
 socket.on('peopleList', function (data) {
+    if (data.person.full_name === 'Name') {
+        return;
+    }
+
     let items = document.getElementsByClassName('placeholder-glow');
     Array.from(items).forEach(function (item) {
         item.remove();

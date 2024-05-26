@@ -236,7 +236,7 @@ class AnswerRecordDAO:
 
     @staticmethod
     def get_all_records():
-        for item in requests.get(AnswerRecordDAO.__resource.format(AnswerRecordDAO.__host), json={}).json()["answers"]:
+        for item in requests.get(AnswerRecordDAO.__resource.format(AnswerRecordDAO.__host), json={}).json()["records"]:
             yield AnswerRecordDAO._construct(item)
 
     @staticmethod
